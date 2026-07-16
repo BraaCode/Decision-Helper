@@ -48,6 +48,7 @@ export interface Decision {
   decidedOptionId?: number;
   decidedAt?: string;
   createdByName?: string;
+  deletedAt?: string | null;
 }
 
 export interface TeamDetail {

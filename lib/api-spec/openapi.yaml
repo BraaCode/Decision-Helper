@@ -240,7 +240,7 @@ paths:
     delete:
       operationId: deleteDecision
       tags: [decisions]
-      summary: Delete a decision and all its data
+      summary: Move a decision to the recycle bin (soft delete, creator only)
       parameters:
         - name: id
           in: path
@@ -249,7 +249,66 @@ paths:
             type: integer
       responses:
         "204":
-          description: Deleted
+          description: Moved to recycle bin
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not found
+
+  /decisions/trash:
+    get:
+      operationId: listTrashedDecisions
+      tags: [decisions]
+      summary: List the authenticated user's deleted decisions (recycle bin)
+      responses:
+        "200":
+          description: List of deleted decisions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Decision"
+        "401":
+          description: Unauthorized
+
+  /decisions/{id}/restore:
+    post:
+      operationId: restoreDecision
+      tags: [decisions]
+      summary: Restore a decision from the recycle bin (creator only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Restored decision
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Decision"
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not found
+
+  /decisions/{id}/permanent:
+    delete:
+      operationId: permanentlyDeleteDecision
+      tags: [decisions]
+      summary: Permanently delete a trashed decision and all its data (creator only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Permanently deleted
         "401":
           description: Unauthorized
         "404":
@@ -744,6 +803,9 @@ components:
           type: string
         createdByName:
           type: string
+        deletedAt:
+          type: string
+          nullable: true
 
     DecisionInput:
       type: object

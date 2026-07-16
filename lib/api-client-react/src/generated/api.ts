@@ -827,7 +827,7 @@ export const getDeleteDecisionUrl = (id: number,) => {
 }
 
 /**
- * @summary Delete a decision and all its data
+ * @summary Move a decision to the recycle bin (soft delete, creator only)
  */
 export const deleteDecision = async (id: number, options?: RequestInit): Promise<void> => {
 
@@ -876,7 +876,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type DeleteDecisionMutationError = ErrorType<void>
 
     /**
- * @summary Delete a decision and all its data
+ * @summary Move a decision to the recycle bin (soft delete, creator only)
  */
 export const useDeleteDecision = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteDecision>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -887,6 +887,225 @@ export const useDeleteDecision = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getDeleteDecisionMutationOptions(options));
+    }
+
+export const getListTrashedDecisionsUrl = () => {
+
+
+
+
+  return `/api/decisions/trash`
+}
+
+/**
+ * @summary List the authenticated user's deleted decisions (recycle bin)
+ */
+export const listTrashedDecisions = async ( options?: RequestInit): Promise<Decision[]> => {
+
+  return customFetch<Decision[]>(getListTrashedDecisionsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListTrashedDecisionsQueryKey = () => {
+    return [
+    `/api/decisions/trash`
+    ] as const;
+    }
+
+
+export const getListTrashedDecisionsQueryOptions = <TData = Awaited<ReturnType<typeof listTrashedDecisions>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTrashedDecisions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListTrashedDecisionsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTrashedDecisions>>> = ({ signal }) => listTrashedDecisions({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTrashedDecisions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListTrashedDecisionsQueryResult = NonNullable<Awaited<ReturnType<typeof listTrashedDecisions>>>
+export type ListTrashedDecisionsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List the authenticated user's deleted decisions (recycle bin)
+ */
+
+export function useListTrashedDecisions<TData = Awaited<ReturnType<typeof listTrashedDecisions>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTrashedDecisions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListTrashedDecisionsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRestoreDecisionUrl = (id: number,) => {
+
+
+
+
+  return `/api/decisions/${id}/restore`
+}
+
+/**
+ * @summary Restore a decision from the recycle bin (creator only)
+ */
+export const restoreDecision = async (id: number, options?: RequestInit): Promise<Decision> => {
+
+  return customFetch<Decision>(getRestoreDecisionUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRestoreDecisionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreDecision>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof restoreDecision>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['restoreDecision'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof restoreDecision>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  restoreDecision(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RestoreDecisionMutationResult = NonNullable<Awaited<ReturnType<typeof restoreDecision>>>
+
+    export type RestoreDecisionMutationError = ErrorType<void>
+
+    /**
+ * @summary Restore a decision from the recycle bin (creator only)
+ */
+export const useRestoreDecision = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreDecision>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof restoreDecision>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getRestoreDecisionMutationOptions(options));
+    }
+
+export const getPermanentlyDeleteDecisionUrl = (id: number,) => {
+
+
+
+
+  return `/api/decisions/${id}/permanent`
+}
+
+/**
+ * @summary Permanently delete a trashed decision and all its data (creator only)
+ */
+export const permanentlyDeleteDecision = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getPermanentlyDeleteDecisionUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getPermanentlyDeleteDecisionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof permanentlyDeleteDecision>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof permanentlyDeleteDecision>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['permanentlyDeleteDecision'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof permanentlyDeleteDecision>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  permanentlyDeleteDecision(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PermanentlyDeleteDecisionMutationResult = NonNullable<Awaited<ReturnType<typeof permanentlyDeleteDecision>>>
+
+    export type PermanentlyDeleteDecisionMutationError = ErrorType<void>
+
+    /**
+ * @summary Permanently delete a trashed decision and all its data (creator only)
+ */
+export const usePermanentlyDeleteDecision = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof permanentlyDeleteDecision>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof permanentlyDeleteDecision>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getPermanentlyDeleteDecisionMutationOptions(options));
     }
 
 export const getDecideDecisionUrl = (id: number,) => {

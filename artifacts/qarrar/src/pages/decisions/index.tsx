@@ -58,12 +58,20 @@ export default function DecisionsList() {
       <main className="flex-1 w-full max-w-5xl mx-auto px-6 py-12">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-foreground">قراراتي</h1>
-          <Link href="/decisions/new">
-            <Button className="gap-2">
-              <Plus className="h-5 w-5" />
-              <span>قرار جديد</span>
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link href="/decisions/trash">
+              <Button variant="ghost" className="gap-2 text-muted-foreground">
+                <Trash2 className="h-4 w-4" />
+                <span>سلة المحذوفات</span>
+              </Button>
+            </Link>
+            <Link href="/decisions/new">
+              <Button className="gap-2">
+                <Plus className="h-5 w-5" />
+                <span>قرار جديد</span>
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {isLoading ? (
@@ -141,15 +149,15 @@ export default function DecisionsList() {
                     </AlertDialogTrigger>
                     <AlertDialogContent dir="rtl">
                       <AlertDialogHeader>
-                        <AlertDialogTitle>هل أنت متأكد من حذف هذا القرار؟</AlertDialogTitle>
+                        <AlertDialogTitle>نقل القرار إلى سلة المحذوفات؟</AlertDialogTitle>
                         <AlertDialogDescription>
-                          هذا الإجراء لا يمكن التراجع عنه. سيتم حذف جميع الخيارات والمعايير والتقييمات المرتبطة به.
+                          سيُنقل القرار إلى سلة المحذوفات، ويمكنك استعادته أو حذفه نهائياً من هناك في أي وقت.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>إلغاء</AlertDialogCancel>
                         <AlertDialogAction onClick={() => handleDelete(decision.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                          حذف
+                          نقل إلى السلة
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>

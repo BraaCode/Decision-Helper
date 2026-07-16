@@ -101,7 +101,8 @@ export const GetTeamResponse = zod.object({
   "status": zod.string(),
   "decidedOptionId": zod.number().optional(),
   "decidedAt": zod.string().optional(),
-  "createdByName": zod.string().optional()
+  "createdByName": zod.string().optional(),
+  "deletedAt": zod.string().nullish()
 }))
 })
 
@@ -137,7 +138,8 @@ export const ListDecisionsResponseItem = zod.object({
   "status": zod.string(),
   "decidedOptionId": zod.number().optional(),
   "decidedAt": zod.string().optional(),
-  "createdByName": zod.string().optional()
+  "createdByName": zod.string().optional(),
+  "deletedAt": zod.string().nullish()
 })
 export const ListDecisionsResponse = zod.array(ListDecisionsResponseItem)
 
@@ -162,7 +164,8 @@ export const CreateDecisionResponse = zod.object({
   "status": zod.string(),
   "decidedOptionId": zod.number().optional(),
   "decidedAt": zod.string().optional(),
-  "createdByName": zod.string().optional()
+  "createdByName": zod.string().optional(),
+  "deletedAt": zod.string().nullish()
 })
 
 
@@ -235,18 +238,66 @@ export const UpdateDecisionResponse = zod.object({
   "status": zod.string(),
   "decidedOptionId": zod.number().optional(),
   "decidedAt": zod.string().optional(),
-  "createdByName": zod.string().optional()
+  "createdByName": zod.string().optional(),
+  "deletedAt": zod.string().nullish()
 })
 
 
 /**
- * @summary Delete a decision and all its data
+ * @summary Move a decision to the recycle bin (soft delete, creator only)
  */
 export const DeleteDecisionParams = zod.object({
   "id": zod.coerce.number()
 })
 
 export const DeleteDecisionResponse = zod.void()
+
+
+/**
+ * @summary List the authenticated user's deleted decisions (recycle bin)
+ */
+export const ListTrashedDecisionsResponseItem = zod.object({
+  "id": zod.number(),
+  "question": zod.string(),
+  "createdAt": zod.string(),
+  "teamId": zod.number().optional(),
+  "status": zod.string(),
+  "decidedOptionId": zod.number().optional(),
+  "decidedAt": zod.string().optional(),
+  "createdByName": zod.string().optional(),
+  "deletedAt": zod.string().nullish()
+})
+export const ListTrashedDecisionsResponse = zod.array(ListTrashedDecisionsResponseItem)
+
+
+/**
+ * @summary Restore a decision from the recycle bin (creator only)
+ */
+export const RestoreDecisionParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const RestoreDecisionResponse = zod.object({
+  "id": zod.number(),
+  "question": zod.string(),
+  "createdAt": zod.string(),
+  "teamId": zod.number().optional(),
+  "status": zod.string(),
+  "decidedOptionId": zod.number().optional(),
+  "decidedAt": zod.string().optional(),
+  "createdByName": zod.string().optional(),
+  "deletedAt": zod.string().nullish()
+})
+
+
+/**
+ * @summary Permanently delete a trashed decision and all its data (creator only)
+ */
+export const PermanentlyDeleteDecisionParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const PermanentlyDeleteDecisionResponse = zod.void()
 
 
 /**
@@ -268,7 +319,8 @@ export const DecideDecisionResponse = zod.object({
   "status": zod.string(),
   "decidedOptionId": zod.number().optional(),
   "decidedAt": zod.string().optional(),
-  "createdByName": zod.string().optional()
+  "createdByName": zod.string().optional(),
+  "deletedAt": zod.string().nullish()
 })
 
 

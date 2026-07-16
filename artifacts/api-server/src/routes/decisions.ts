@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, desc, inArray } from "drizzle-orm";
+import { eq, and, desc, inArray, isNull, isNotNull } from "drizzle-orm";
 import {
   db,
   decisionsTable,
@@ -35,6 +35,8 @@ import {
   AddCommentParams,
   AddCommentBody,
   GetDecisionAuditParams,
+  RestoreDecisionParams,
+  PermanentlyDeleteDecisionParams,
 } from "@workspace/api-zod";
 import { requireAuth, findAccessibleDecision, isTeamMember, logAudit } from "./helpers";
 
@@ -50,6 +52,7 @@ function decisionShape(d: typeof decisionsTable.$inferSelect) {
     decidedOptionId: d.decidedOptionId,
     decidedAt: d.decidedAt,
     createdByName: d.createdByName,
+    deletedAt: d.deletedAt,
   };
 }
 
@@ -57,10 +60,16 @@ function decisionShape(d: typeof decisionsTable.$inferSelect) {
 router.get("/decisions", requireAuth, async (req: any, res): Promise<void> => {
   const memberships = await db.select().from(teamMembersTable).where(eq(teamMembersTable.userId, req.userId));
   const teamIds = memberships.map((m) => m.teamId);
-  const own = await db.select().from(decisionsTable).where(eq(decisionsTable.userId, req.userId));
+  const own = await db
+    .select()
+    .from(decisionsTable)
+    .where(and(eq(decisionsTable.userId, req.userId), isNull(decisionsTable.deletedAt)));
   let teamDecisions: (typeof decisionsTable.$inferSelect)[] = [];
   if (teamIds.length > 0) {
-    teamDecisions = await db.select().from(decisionsTable).where(inArray(decisionsTable.teamId, teamIds));
+    teamDecisions = await db
+      .select()
+      .from(decisionsTable)
+      .where(and(inArray(decisionsTable.teamId, teamIds), isNull(decisionsTable.deletedAt)));
   }
   const seen = new Set<number>();
   const all = [...own, ...teamDecisions].filter((d) => (seen.has(d.id) ? false : (seen.add(d.id), true)));
@@ -97,6 +106,69 @@ router.post("/decisions", requireAuth, async (req: any, res): Promise<void> => {
     detail: `أنشأ قرار «${decision.question}»`,
   });
   res.status(201).json(decisionShape(decision));
+});
+
+// GET /decisions/trash — the user's recycle bin (must be registered before /decisions/:id)
+router.get("/decisions/trash", requireAuth, async (req: any, res): Promise<void> => {
+  const trashed = await db
+    .select()
+    .from(decisionsTable)
+    .where(and(eq(decisionsTable.userId, req.userId), isNotNull(decisionsTable.deletedAt)))
+    .orderBy(desc(decisionsTable.deletedAt));
+  res.json(trashed.map(decisionShape));
+});
+
+// POST /decisions/:id/restore — creator only
+router.post("/decisions/:id/restore", requireAuth, async (req: any, res): Promise<void> => {
+  const params = RestoreDecisionParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const [restored] = await db
+    .update(decisionsTable)
+    .set({ deletedAt: null })
+    .where(and(eq(decisionsTable.id, params.data.id), eq(decisionsTable.userId, req.userId), isNotNull(decisionsTable.deletedAt)))
+    .returning();
+  if (!restored) {
+    res.status(404).json({ error: "Decision not found" });
+    return;
+  }
+  await logAudit({
+    teamId: restored.teamId,
+    decisionId: restored.id,
+    userId: req.userId,
+    actorName: restored.createdByName,
+    action: "decision_restored",
+    detail: `استعاد قرار «${restored.question}» من سلة المحذوفات`,
+  });
+  res.json(decisionShape(restored));
+});
+
+// DELETE /decisions/:id/permanent — creator only, must already be in trash
+router.delete("/decisions/:id/permanent", requireAuth, async (req: any, res): Promise<void> => {
+  const params = PermanentlyDeleteDecisionParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const [deleted] = await db
+    .delete(decisionsTable)
+    .where(and(eq(decisionsTable.id, params.data.id), eq(decisionsTable.userId, req.userId), isNotNull(decisionsTable.deletedAt)))
+    .returning();
+  if (!deleted) {
+    res.status(404).json({ error: "Decision not found" });
+    return;
+  }
+  await logAudit({
+    teamId: deleted.teamId,
+    decisionId: deleted.id,
+    userId: req.userId,
+    actorName: deleted.createdByName,
+    action: "decision_permanently_deleted",
+    detail: `حذف قرار «${deleted.question}» نهائياً`,
+  });
+  res.sendStatus(204);
 });
 
 // GET /decisions/:id
@@ -143,7 +215,7 @@ router.patch("/decisions/:id", requireAuth, async (req: any, res): Promise<void>
   const [existing] = await db
     .select()
     .from(decisionsTable)
-    .where(and(eq(decisionsTable.id, params.data.id), eq(decisionsTable.userId, req.userId)));
+    .where(and(eq(decisionsTable.id, params.data.id), eq(decisionsTable.userId, req.userId), isNull(decisionsTable.deletedAt)));
   if (!existing) {
     res.status(404).json({ error: "Decision not found" });
     return;
@@ -166,19 +238,19 @@ router.delete("/decisions/:id", requireAuth, async (req: any, res): Promise<void
   const [existing] = await db
     .select()
     .from(decisionsTable)
-    .where(and(eq(decisionsTable.id, params.data.id), eq(decisionsTable.userId, req.userId)));
+    .where(and(eq(decisionsTable.id, params.data.id), eq(decisionsTable.userId, req.userId), isNull(decisionsTable.deletedAt)));
   if (!existing) {
     res.status(404).json({ error: "Decision not found" });
     return;
   }
-  await db.delete(decisionsTable).where(eq(decisionsTable.id, params.data.id));
+  await db.update(decisionsTable).set({ deletedAt: new Date() }).where(eq(decisionsTable.id, params.data.id));
   await logAudit({
     teamId: existing.teamId,
     decisionId: existing.id,
     userId: req.userId,
     actorName: existing.createdByName,
     action: "decision_deleted",
-    detail: `حذف قرار «${existing.question}»`,
+    detail: `نقل قرار «${existing.question}» إلى سلة المحذوفات`,
   });
   res.sendStatus(204);
 });
@@ -336,7 +408,7 @@ router.post("/decisions/:id/options", requireAuth, async (req: any, res): Promis
   const [decision] = await db
     .select()
     .from(decisionsTable)
-    .where(and(eq(decisionsTable.id, params.data.id), eq(decisionsTable.userId, req.userId)));
+    .where(and(eq(decisionsTable.id, params.data.id), eq(decisionsTable.userId, req.userId), isNull(decisionsTable.deletedAt)));
   if (!decision) {
     res.status(404).json({ error: "Decision not found" });
     return;
@@ -372,7 +444,7 @@ router.patch("/decisions/:id/options/:optionId", requireAuth, async (req: any, r
   const [decision] = await db
     .select()
     .from(decisionsTable)
-    .where(and(eq(decisionsTable.id, params.data.id), eq(decisionsTable.userId, req.userId)));
+    .where(and(eq(decisionsTable.id, params.data.id), eq(decisionsTable.userId, req.userId), isNull(decisionsTable.deletedAt)));
   if (!decision) {
     res.status(404).json({ error: "Decision not found" });
     return;
@@ -403,7 +475,7 @@ router.delete("/decisions/:id/options/:optionId", requireAuth, async (req: any, 
   const [decision] = await db
     .select()
     .from(decisionsTable)
-    .where(and(eq(decisionsTable.id, params.data.id), eq(decisionsTable.userId, req.userId)));
+    .where(and(eq(decisionsTable.id, params.data.id), eq(decisionsTable.userId, req.userId), isNull(decisionsTable.deletedAt)));
   if (!decision) {
     res.status(404).json({ error: "Decision not found" });
     return;
@@ -438,7 +510,7 @@ router.post("/decisions/:id/criteria", requireAuth, async (req: any, res): Promi
   const [decision] = await db
     .select()
     .from(decisionsTable)
-    .where(and(eq(decisionsTable.id, params.data.id), eq(decisionsTable.userId, req.userId)));
+    .where(and(eq(decisionsTable.id, params.data.id), eq(decisionsTable.userId, req.userId), isNull(decisionsTable.deletedAt)));
   if (!decision) {
     res.status(404).json({ error: "Decision not found" });
     return;
@@ -470,7 +542,7 @@ router.patch("/decisions/:id/criteria/:criterionId", requireAuth, async (req: an
   const [decision] = await db
     .select()
     .from(decisionsTable)
-    .where(and(eq(decisionsTable.id, params.data.id), eq(decisionsTable.userId, req.userId)));
+    .where(and(eq(decisionsTable.id, params.data.id), eq(decisionsTable.userId, req.userId), isNull(decisionsTable.deletedAt)));
   if (!decision) {
     res.status(404).json({ error: "Decision not found" });
     return;
@@ -504,7 +576,7 @@ router.delete("/decisions/:id/criteria/:criterionId", requireAuth, async (req: a
   const [decision] = await db
     .select()
     .from(decisionsTable)
-    .where(and(eq(decisionsTable.id, params.data.id), eq(decisionsTable.userId, req.userId)));
+    .where(and(eq(decisionsTable.id, params.data.id), eq(decisionsTable.userId, req.userId), isNull(decisionsTable.deletedAt)));
   if (!decision) {
     res.status(404).json({ error: "Decision not found" });
     return;

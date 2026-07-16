@@ -16,7 +16,7 @@ export function requireAuth(req: any, res: any, next: any) {
 /** A user can access a decision if they created it OR belong to its team. */
 export async function findAccessibleDecision(decisionId: number, userId: string) {
   const [decision] = await db.select().from(decisionsTable).where(eq(decisionsTable.id, decisionId));
-  if (!decision) return null;
+  if (!decision || decision.deletedAt) return null;
   if (decision.userId === userId) return decision;
   if (decision.teamId) {
     const [membership] = await db

@@ -12,6 +12,7 @@ export const decisionsTable = pgTable("decisions", {
   decidedOptionId: integer("decided_option_id"),
   decidedAt: timestamp("decided_at", { withTimezone: true }),
   createdByName: text("created_by_name").notNull().default(""),
+  deletedAt: timestamp("deleted_at"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

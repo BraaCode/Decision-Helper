@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "قرار — مساعد اتخاذ القرار"
+version = "1.0.0"
+id = "artifacts/qarrar"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23069
+
+[services.development]
+run = "pnpm --filter @workspace/qarrar run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/qarrar", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/qarrar/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23069"
+BASE_PATH = "/"

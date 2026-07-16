@@ -9,20 +9,99 @@ export interface HealthStatus {
   status: string;
 }
 
+export interface Team {
+  id: number;
+  name: string;
+  ownerId: string;
+  inviteCode: string;
+  createdAt: string;
+  memberCount: number;
+}
+
+export interface TeamInput {
+  /** @minLength 1 */
+  name: string;
+  memberName: string;
+}
+
+export interface JoinTeamInput {
+  /** @minLength 1 */
+  code: string;
+  memberName: string;
+}
+
+export interface TeamMember {
+  id: number;
+  teamId: number;
+  userId: string;
+  name: string;
+  role: string;
+  joinedAt: string;
+}
+
 export interface Decision {
   id: number;
   question: string;
   createdAt: string;
+  teamId?: number;
+  status: string;
+  decidedOptionId?: number;
+  decidedAt?: string;
+  createdByName?: string;
+}
+
+export interface TeamDetail {
+  id: number;
+  name: string;
+  ownerId: string;
+  inviteCode: string;
+  createdAt: string;
+  members: TeamMember[];
+  decisions: Decision[];
+}
+
+export interface AuditEntry {
+  id: number;
+  teamId?: number;
+  decisionId?: number;
+  userId: string;
+  actorName: string;
+  action: string;
+  detail: string;
+  createdAt: string;
+}
+
+export interface Comment {
+  id: number;
+  decisionId: number;
+  optionId?: number;
+  userId: string;
+  authorName: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface CommentInput {
+  /** @minLength 1 */
+  body: string;
+  authorName: string;
+  optionId?: number;
 }
 
 export interface DecisionInput {
   /** @minLength 1 */
   question: string;
+  teamId?: number;
+  createdByName?: string;
 }
 
 export interface DecisionUpdate {
   /** @minLength 1 */
   question?: string;
+}
+
+export interface DecideInput {
+  optionId: number;
 }
 
 export interface Option {
@@ -74,6 +153,7 @@ export interface Rating {
   id: number;
   optionId: number;
   criterionId: number;
+  userId: string;
   score: number;
 }
 
@@ -96,12 +176,25 @@ export interface OptionScore {
   isWinner?: boolean;
 }
 
+export interface DecisionScores {
+  scores: OptionScore[];
+  voterCount: number;
+  myVoteComplete: boolean;
+}
+
 export interface DecisionDetail {
   id: number;
   question: string;
   createdAt: string;
+  teamId?: number;
+  status: string;
+  decidedOptionId?: number;
+  decidedAt?: string;
+  createdByName?: string;
+  isCreator?: boolean;
   options: Option[];
   criteria: Criterion[];
   ratings: Rating[];
+  myRatings: Rating[];
 }
 

@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { useLocation, Link } from "wouter";
+import { useLocation, Link, useSearch } from "wouter";
+import { useUser } from "@clerk/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
-import { ChevronRight, ChevronLeft, Plus, Trash2, Save, ArrowRight } from "lucide-react";
+import { ChevronRight, ChevronLeft, Plus, Trash2, Save, ArrowRight, LayoutTemplate } from "lucide-react";
 import {
   useCreateDecision,
   useAddOption,
@@ -14,15 +15,26 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { decisionTemplates } from "@/lib/templates";
 
 type Step = 1 | 2 | 3 | 4;
 
 export default function DecisionWizard() {
   const [, setLocation] = useLocation();
+  const search = useSearch();
+  const teamId = (() => {
+    const raw = new URLSearchParams(search).get("teamId");
+    const n = raw ? parseInt(raw, 10) : NaN;
+    return Number.isFinite(n) ? n : undefined;
+  })();
+  const { user } = useUser();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [step, setStep] = useState<Step>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [templateId, setTemplateId] = useState<string | null>(null);
+
+  const myName = user?.fullName || user?.firstName || user?.primaryEmailAddress?.emailAddress || "";
 
   // Form State
   const [question, setQuestion] = useState("");
@@ -35,6 +47,19 @@ export default function DecisionWizard() {
   const addOption = useAddOption();
   const addCriterion = useAddCriterion();
   const upsertRating = useUpsertRating();
+
+  const applyTemplate = (id: string) => {
+    const tpl = decisionTemplates.find((t) => t.id === id);
+    if (!tpl) return;
+    setTemplateId(id);
+    if (!question.trim()) setQuestion(tpl.question);
+    setCriteria(tpl.criteria.map((c, i) => ({ id: Date.now() + i, label: c.label, weight: c.weight })));
+  };
+
+  const clearTemplate = () => {
+    setTemplateId(null);
+    setCriteria([{ id: Date.now(), label: "", weight: 3 }]);
+  };
 
   const handleNext = () => {
     if (step === 1 && !question.trim()) return;
@@ -71,7 +96,9 @@ export default function DecisionWizard() {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
-      const decision = await createDecision.mutateAsync({ data: { question } });
+      const decision = await createDecision.mutateAsync({
+        data: { question, teamId, createdByName: myName },
+      });
       const decisionId = decision.id;
 
       const validOptions = options.filter(o => o.label.trim());
@@ -121,7 +148,7 @@ export default function DecisionWizard() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="border-b border-border bg-card/50 px-6 h-16 flex items-center justify-between sticky top-0 z-10 backdrop-blur-sm">
-        <Link href="/decisions" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground">
+        <Link href={teamId ? `/teams/${teamId}` : "/decisions"} className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground">
           <ArrowRight className="h-4 w-4 me-2" />
           إلغاء
         </Link>
@@ -139,8 +166,36 @@ export default function DecisionWizard() {
       <main className="flex-1 w-full max-w-2xl mx-auto px-6 py-12 flex flex-col">
         {step === 1 && (
           <div className="flex-1 flex flex-col justify-center max-w-xl mx-auto w-full animate-in slide-in-from-bottom-4 fade-in">
+            {teamId && (
+              <div className="mb-6 bg-accent border border-primary/20 rounded-xl p-3 text-sm text-accent-foreground text-center">
+                قرار جماعي — سيتمكن جميع أعضاء الفريق من التصويت والنقاش.
+              </div>
+            )}
             <h1 className="text-3xl font-bold text-foreground mb-4">ما هو القرار الذي تحاول اتخاذه؟</h1>
-            <p className="text-muted-foreground mb-8">صغ قرارك في شكل سؤال واضح ومحدد.</p>
+            <p className="text-muted-foreground mb-6">صغ قرارك في شكل سؤال واضح ومحدد — أو ابدأ من قالب جاهز.</p>
+
+            <div className="flex flex-wrap gap-2 mb-6">
+              {decisionTemplates.map((tpl) => (
+                <button
+                  key={tpl.id}
+                  onClick={() => (templateId === tpl.id ? clearTemplate() : applyTemplate(tpl.id))}
+                  className={`inline-flex items-center gap-1.5 text-sm font-medium rounded-full px-3.5 py-1.5 border transition-colors ${
+                    templateId === tpl.id
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-card text-foreground border-border hover:border-primary/40"
+                  }`}
+                >
+                  <span>{tpl.icon}</span> {tpl.name}
+                </button>
+              ))}
+            </div>
+            {templateId && (
+              <p className="text-xs text-muted-foreground mb-4 flex items-center gap-1.5">
+                <LayoutTemplate className="h-3.5 w-3.5" />
+                تم تعبئة المعايير المقترحة تلقائياً — يمكنك تعديلها في الخطوة الثالثة.
+              </p>
+            )}
+
             <Input
               value={question}
               onChange={(e) => setQuestion(e.target.value)}

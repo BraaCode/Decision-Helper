@@ -6,13 +6,13 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface Decision {
+export interface AuditEntry {
   id: number;
-  question: string;
-  createdAt: string;
   teamId?: number;
-  status: string;
-  decidedOptionId?: number;
-  decidedAt?: string;
-  createdByName?: string;
+  decisionId?: number;
+  userId: string;
+  actorName: string;
+  action: string;
+  detail: string;
+  createdAt: string;
 }

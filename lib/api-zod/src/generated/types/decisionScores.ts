@@ -5,11 +5,10 @@
  * API specification for قرار — decision making app
  * OpenAPI spec version: 0.1.0
  */
+import type { OptionScore } from './optionScore';
 
-export interface Rating {
-  id: number;
-  optionId: number;
-  criterionId: number;
-  userId: string;
-  score: number;
+export interface DecisionScores {
+  scores: OptionScore[];
+  voterCount: number;
+  myVoteComplete: boolean;
 }

@@ -1,7 +1,7 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { useUser, useClerk } from "@clerk/react";
-import { LogOut, Plus, ChevronLeft, Trash2 } from "lucide-react";
+import { Plus, ChevronLeft, Trash2, CheckCircle2, CircleDashed, Users } from "lucide-react";
+import { AppHeader } from "@/components/app-header";
 import {
   useListDecisions,
   useDeleteDecision,
@@ -25,8 +25,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 
 export default function DecisionsList() {
-  const { user } = useUser();
-  const { signOut } = useClerk();
   const { data: decisions, isLoading } = useListDecisions();
   const deleteDecision = useDeleteDecision();
   const queryClient = useQueryClient();
@@ -55,26 +53,7 @@ export default function DecisionsList() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="border-b border-border bg-card/50 px-6 lg:px-12 h-16 flex items-center justify-between sticky top-0 z-10 backdrop-blur-sm">
-        <div className="flex items-center gap-3">
-          <img src="/logo.svg" alt="قرار" className="h-8 w-8" />
-          <span className="font-bold text-foreground">قرار</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-muted-foreground hidden sm:block">
-            {user?.firstName ? `مرحباً، ${user.firstName}` : user?.primaryEmailAddress?.emailAddress}
-          </span>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => signOut({ redirectUrl: "/" })}
-            className="text-muted-foreground hover:text-foreground"
-            title="تسجيل الخروج"
-          >
-            <LogOut className="h-5 w-5" />
-          </Button>
-        </div>
-      </header>
+      <AppHeader />
 
       <main className="flex-1 w-full max-w-5xl mx-auto px-6 py-12">
         <div className="flex items-center justify-between mb-8">
@@ -119,9 +98,25 @@ export default function DecisionsList() {
                   <h3 className="font-semibold text-lg text-foreground line-clamp-2 mb-2 leading-tight">
                     {decision.question}
                   </h3>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground mb-2">
                     {format(new Date(decision.createdAt), "dd MMMM yyyy", { locale: ar })}
                   </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {decision.status === "decided" ? (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-primary bg-primary/10 rounded-full px-2 py-0.5">
+                        <CheckCircle2 className="h-3 w-3" /> معتمد
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground bg-muted rounded-full px-2 py-0.5">
+                        <CircleDashed className="h-3 w-3" /> قيد التصويت
+                      </span>
+                    )}
+                    {decision.teamId && (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground bg-muted rounded-full px-2 py-0.5">
+                        <Users className="h-3 w-3" /> جماعي
+                      </span>
+                    )}
+                  </div>
                 </div>
                 
                 <div className="relative z-10 flex items-center justify-between pt-4 border-t border-border mt-auto">

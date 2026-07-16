@@ -6,13 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface Decision {
+export interface Comment {
   id: number;
-  question: string;
+  decisionId: number;
+  optionId?: number;
+  userId: string;
+  authorName: string;
+  body: string;
   createdAt: string;
-  teamId?: number;
-  status: string;
-  decidedOptionId?: number;
-  decidedAt?: string;
-  createdByName?: string;
 }

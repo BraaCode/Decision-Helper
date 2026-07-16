@@ -18,6 +18,12 @@ tags:
     description: Criteria for evaluating options
   - name: ratings
     description: Ratings of options against criteria
+  - name: teams
+    description: Team workspaces
+  - name: comments
+    description: Discussion on decisions
+  - name: audit
+    description: Audit log
 
 paths:
   /healthz:
@@ -32,6 +38,117 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /teams:
+    get:
+      operationId: listTeams
+      tags: [teams]
+      summary: List teams the authenticated user belongs to
+      responses:
+        "200":
+          description: List of teams
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Team"
+        "401":
+          description: Unauthorized
+    post:
+      operationId: createTeam
+      tags: [teams]
+      summary: Create a new team
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TeamInput"
+      responses:
+        "201":
+          description: Created team
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Team"
+        "400":
+          description: Validation error
+        "401":
+          description: Unauthorized
+
+  /teams/join:
+    post:
+      operationId: joinTeam
+      tags: [teams]
+      summary: Join a team using an invite code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JoinTeamInput"
+      responses:
+        "200":
+          description: Joined team
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Team"
+        "400":
+          description: Validation error
+        "401":
+          description: Unauthorized
+        "404":
+          description: Invalid invite code
+
+  /teams/{id}:
+    get:
+      operationId: getTeam
+      tags: [teams]
+      summary: Get team detail with members and decisions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Team detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamDetail"
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not found
+
+  /teams/{id}/audit:
+    get:
+      operationId: getTeamAudit
+      tags: [audit]
+      summary: Get the audit log for a team
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Audit entries, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditEntry"
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not found
 
   /decisions:
     get:
@@ -133,6 +250,114 @@ paths:
       responses:
         "204":
           description: Deleted
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not found
+
+  /decisions/{id}/decide:
+    post:
+      operationId: decideDecision
+      tags: [decisions]
+      summary: Mark an option as the final decision (creator only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DecideInput"
+      responses:
+        "200":
+          description: Updated decision
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Decision"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Only the creator can decide
+        "404":
+          description: Not found
+
+  /decisions/{id}/comments:
+    get:
+      operationId: listComments
+      tags: [comments]
+      summary: List comments on a decision
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Comments, oldest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Comment"
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not found
+    post:
+      operationId: addComment
+      tags: [comments]
+      summary: Add a comment to a decision
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommentInput"
+      responses:
+        "201":
+          description: Created comment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Comment"
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not found
+
+  /decisions/{id}/audit:
+    get:
+      operationId: getDecisionAudit
+      tags: [audit]
+      summary: Get the audit log for a decision
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Audit entries, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditEntry"
         "401":
           description: Unauthorized
         "404":
@@ -312,7 +537,7 @@ paths:
     put:
       operationId: upsertRating
       tags: [ratings]
-      summary: Set or update a rating for an option+criterion pair
+      summary: Set or update the authenticated user's rating for an option+criterion pair
       parameters:
         - name: id
           in: path
@@ -341,7 +566,7 @@ paths:
     get:
       operationId: getDecisionScores
       tags: [decisions]
-      summary: Get weighted scores for all options in a decision
+      summary: Get weighted scores for all options, aggregated across all voters
       parameters:
         - name: id
           in: path
@@ -354,9 +579,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/OptionScore"
+                $ref: "#/components/schemas/DecisionScores"
         "401":
           description: Unauthorized
         "404":
@@ -372,15 +595,154 @@ components:
       required:
         - status
 
+    Team:
+      type: object
+      required: [id, name, ownerId, inviteCode, createdAt, memberCount]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        ownerId:
+          type: string
+        inviteCode:
+          type: string
+        createdAt:
+          type: string
+        memberCount:
+          type: integer
+
+    TeamInput:
+      type: object
+      required: [name, memberName]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        memberName:
+          type: string
+
+    JoinTeamInput:
+      type: object
+      required: [code, memberName]
+      properties:
+        code:
+          type: string
+          minLength: 1
+        memberName:
+          type: string
+
+    TeamMember:
+      type: object
+      required: [id, teamId, userId, name, role, joinedAt]
+      properties:
+        id:
+          type: integer
+        teamId:
+          type: integer
+        userId:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+        joinedAt:
+          type: string
+
+    TeamDetail:
+      type: object
+      required: [id, name, ownerId, inviteCode, createdAt, members, decisions]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        ownerId:
+          type: string
+        inviteCode:
+          type: string
+        createdAt:
+          type: string
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/TeamMember"
+        decisions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Decision"
+
+    AuditEntry:
+      type: object
+      required: [id, userId, actorName, action, detail, createdAt]
+      properties:
+        id:
+          type: integer
+        teamId:
+          type: integer
+        decisionId:
+          type: integer
+        userId:
+          type: string
+        actorName:
+          type: string
+        action:
+          type: string
+        detail:
+          type: string
+        createdAt:
+          type: string
+
+    Comment:
+      type: object
+      required: [id, decisionId, userId, authorName, body, createdAt]
+      properties:
+        id:
+          type: integer
+        decisionId:
+          type: integer
+        optionId:
+          type: integer
+        userId:
+          type: string
+        authorName:
+          type: string
+        body:
+          type: string
+        createdAt:
+          type: string
+
+    CommentInput:
+      type: object
+      required: [body, authorName]
+      properties:
+        body:
+          type: string
+          minLength: 1
+        authorName:
+          type: string
+        optionId:
+          type: integer
+
     Decision:
       type: object
-      required: [id, question, createdAt]
+      required: [id, question, createdAt, status]
       properties:
         id:
           type: integer
         question:
           type: string
         createdAt:
+          type: string
+        teamId:
+          type: integer
+        status:
+          type: string
+        decidedOptionId:
+          type: integer
+        decidedAt:
+          type: string
+        createdByName:
           type: string
 
     DecisionInput:
@@ -390,6 +752,10 @@ components:
         question:
           type: string
           minLength: 1
+        teamId:
+          type: integer
+        createdByName:
+          type: string
 
     DecisionUpdate:
       type: object
@@ -397,6 +763,13 @@ components:
         question:
           type: string
           minLength: 1
+
+    DecideInput:
+      type: object
+      required: [optionId]
+      properties:
+        optionId:
+          type: integer
 
     Option:
       type: object
@@ -466,7 +839,7 @@ components:
 
     Rating:
       type: object
-      required: [id, optionId, criterionId, score]
+      required: [id, optionId, criterionId, userId, score]
       properties:
         id:
           type: integer
@@ -474,6 +847,8 @@ components:
           type: integer
         criterionId:
           type: integer
+        userId:
+          type: string
         score:
           type: integer
 
@@ -507,9 +882,22 @@ components:
         isWinner:
           type: boolean
 
+    DecisionScores:
+      type: object
+      required: [scores, voterCount, myVoteComplete]
+      properties:
+        scores:
+          type: array
+          items:
+            $ref: "#/components/schemas/OptionScore"
+        voterCount:
+          type: integer
+        myVoteComplete:
+          type: boolean
+
     DecisionDetail:
       type: object
-      required: [id, question, createdAt, options, criteria, ratings]
+      required: [id, question, createdAt, status, options, criteria, ratings, myRatings]
       properties:
         id:
           type: integer
@@ -517,6 +905,18 @@ components:
           type: string
         createdAt:
           type: string
+        teamId:
+          type: integer
+        status:
+          type: string
+        decidedOptionId:
+          type: integer
+        decidedAt:
+          type: string
+        createdByName:
+          type: string
+        isCreator:
+          type: boolean
         options:
           type: array
           items:
@@ -526,6 +926,10 @@ components:
           items:
             $ref: "#/components/schemas/Criterion"
         ratings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Rating"
+        myRatings:
           type: array
           items:
             $ref: "#/components/schemas/Rating"

@@ -1,0 +1,1 @@
+- [qarrar B2B model](qarrar-b2b-model.md) — team access rules, per-user vote averaging, one-way finalization, atomic rating upsert, why AI assist was skipped.

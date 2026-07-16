@@ -20,20 +20,28 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AuditEntry,
+  Comment,
+  CommentInput,
   Criterion,
   CriterionInput,
   CriterionUpdate,
+  DecideInput,
   Decision,
   DecisionDetail,
   DecisionInput,
+  DecisionScores,
   DecisionUpdate,
   HealthStatus,
+  JoinTeamInput,
   Option,
   OptionInput,
-  OptionScore,
   OptionUpdate,
   Rating,
-  RatingInput
+  RatingInput,
+  Team,
+  TeamDetail,
+  TeamInput
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -128,6 +136,379 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getHealthCheckQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListTeamsUrl = () => {
+
+
+
+
+  return `/api/teams`
+}
+
+/**
+ * @summary List teams the authenticated user belongs to
+ */
+export const listTeams = async ( options?: RequestInit): Promise<Team[]> => {
+
+  return customFetch<Team[]>(getListTeamsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListTeamsQueryKey = () => {
+    return [
+    `/api/teams`
+    ] as const;
+    }
+
+
+export const getListTeamsQueryOptions = <TData = Awaited<ReturnType<typeof listTeams>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTeams>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListTeamsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTeams>>> = ({ signal }) => listTeams({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTeams>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListTeamsQueryResult = NonNullable<Awaited<ReturnType<typeof listTeams>>>
+export type ListTeamsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List teams the authenticated user belongs to
+ */
+
+export function useListTeams<TData = Awaited<ReturnType<typeof listTeams>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTeams>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListTeamsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateTeamUrl = () => {
+
+
+
+
+  return `/api/teams`
+}
+
+/**
+ * @summary Create a new team
+ */
+export const createTeam = async (teamInput: TeamInput, options?: RequestInit): Promise<Team> => {
+
+  return customFetch<Team>(getCreateTeamUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(teamInput)
+  }
+);}
+
+
+
+
+
+export const getCreateTeamMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTeam>>, TError,{data: BodyType<TeamInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createTeam>>, TError,{data: BodyType<TeamInput>}, TContext> => {
+
+const mutationKey = ['createTeam'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createTeam>>, {data: BodyType<TeamInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createTeam(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateTeamMutationResult = NonNullable<Awaited<ReturnType<typeof createTeam>>>
+    export type CreateTeamMutationBody = BodyType<TeamInput>
+    export type CreateTeamMutationError = ErrorType<void>
+
+    /**
+ * @summary Create a new team
+ */
+export const useCreateTeam = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTeam>>, TError,{data: BodyType<TeamInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createTeam>>,
+        TError,
+        {data: BodyType<TeamInput>},
+        TContext
+      > => {
+      return useMutation(getCreateTeamMutationOptions(options));
+    }
+
+export const getJoinTeamUrl = () => {
+
+
+
+
+  return `/api/teams/join`
+}
+
+/**
+ * @summary Join a team using an invite code
+ */
+export const joinTeam = async (joinTeamInput: JoinTeamInput, options?: RequestInit): Promise<Team> => {
+
+  return customFetch<Team>(getJoinTeamUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(joinTeamInput)
+  }
+);}
+
+
+
+
+
+export const getJoinTeamMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof joinTeam>>, TError,{data: BodyType<JoinTeamInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof joinTeam>>, TError,{data: BodyType<JoinTeamInput>}, TContext> => {
+
+const mutationKey = ['joinTeam'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof joinTeam>>, {data: BodyType<JoinTeamInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  joinTeam(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type JoinTeamMutationResult = NonNullable<Awaited<ReturnType<typeof joinTeam>>>
+    export type JoinTeamMutationBody = BodyType<JoinTeamInput>
+    export type JoinTeamMutationError = ErrorType<void>
+
+    /**
+ * @summary Join a team using an invite code
+ */
+export const useJoinTeam = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof joinTeam>>, TError,{data: BodyType<JoinTeamInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof joinTeam>>,
+        TError,
+        {data: BodyType<JoinTeamInput>},
+        TContext
+      > => {
+      return useMutation(getJoinTeamMutationOptions(options));
+    }
+
+export const getGetTeamUrl = (id: number,) => {
+
+
+
+
+  return `/api/teams/${id}`
+}
+
+/**
+ * @summary Get team detail with members and decisions
+ */
+export const getTeam = async (id: number, options?: RequestInit): Promise<TeamDetail> => {
+
+  return customFetch<TeamDetail>(getGetTeamUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTeamQueryKey = (id: number,) => {
+    return [
+    `/api/teams/${id}`
+    ] as const;
+    }
+
+
+export const getGetTeamQueryOptions = <TData = Awaited<ReturnType<typeof getTeam>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTeam>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTeamQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTeam>>> = ({ signal }) => getTeam(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTeam>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTeamQueryResult = NonNullable<Awaited<ReturnType<typeof getTeam>>>
+export type GetTeamQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get team detail with members and decisions
+ */
+
+export function useGetTeam<TData = Awaited<ReturnType<typeof getTeam>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTeam>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTeamQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetTeamAuditUrl = (id: number,) => {
+
+
+
+
+  return `/api/teams/${id}/audit`
+}
+
+/**
+ * @summary Get the audit log for a team
+ */
+export const getTeamAudit = async (id: number, options?: RequestInit): Promise<AuditEntry[]> => {
+
+  return customFetch<AuditEntry[]>(getGetTeamAuditUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTeamAuditQueryKey = (id: number,) => {
+    return [
+    `/api/teams/${id}/audit`
+    ] as const;
+    }
+
+
+export const getGetTeamAuditQueryOptions = <TData = Awaited<ReturnType<typeof getTeamAudit>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTeamAudit>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTeamAuditQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTeamAudit>>> = ({ signal }) => getTeamAudit(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTeamAudit>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTeamAuditQueryResult = NonNullable<Awaited<ReturnType<typeof getTeamAudit>>>
+export type GetTeamAuditQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get the audit log for a team
+ */
+
+export function useGetTeamAudit<TData = Awaited<ReturnType<typeof getTeamAudit>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTeamAudit>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTeamAuditQueryOptions(id,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -507,6 +888,304 @@ export const useDeleteDecision = <TError = ErrorType<void>,
       > => {
       return useMutation(getDeleteDecisionMutationOptions(options));
     }
+
+export const getDecideDecisionUrl = (id: number,) => {
+
+
+
+
+  return `/api/decisions/${id}/decide`
+}
+
+/**
+ * @summary Mark an option as the final decision (creator only)
+ */
+export const decideDecision = async (id: number,
+    decideInput: DecideInput, options?: RequestInit): Promise<Decision> => {
+
+  return customFetch<Decision>(getDecideDecisionUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(decideInput)
+  }
+);}
+
+
+
+
+
+export const getDecideDecisionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideDecision>>, TError,{id: number;data: BodyType<DecideInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof decideDecision>>, TError,{id: number;data: BodyType<DecideInput>}, TContext> => {
+
+const mutationKey = ['decideDecision'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof decideDecision>>, {id: number;data: BodyType<DecideInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  decideDecision(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DecideDecisionMutationResult = NonNullable<Awaited<ReturnType<typeof decideDecision>>>
+    export type DecideDecisionMutationBody = BodyType<DecideInput>
+    export type DecideDecisionMutationError = ErrorType<void>
+
+    /**
+ * @summary Mark an option as the final decision (creator only)
+ */
+export const useDecideDecision = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideDecision>>, TError,{id: number;data: BodyType<DecideInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof decideDecision>>,
+        TError,
+        {id: number;data: BodyType<DecideInput>},
+        TContext
+      > => {
+      return useMutation(getDecideDecisionMutationOptions(options));
+    }
+
+export const getListCommentsUrl = (id: number,) => {
+
+
+
+
+  return `/api/decisions/${id}/comments`
+}
+
+/**
+ * @summary List comments on a decision
+ */
+export const listComments = async (id: number, options?: RequestInit): Promise<Comment[]> => {
+
+  return customFetch<Comment[]>(getListCommentsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCommentsQueryKey = (id: number,) => {
+    return [
+    `/api/decisions/${id}/comments`
+    ] as const;
+    }
+
+
+export const getListCommentsQueryOptions = <TData = Awaited<ReturnType<typeof listComments>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listComments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCommentsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listComments>>> = ({ signal }) => listComments(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listComments>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCommentsQueryResult = NonNullable<Awaited<ReturnType<typeof listComments>>>
+export type ListCommentsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List comments on a decision
+ */
+
+export function useListComments<TData = Awaited<ReturnType<typeof listComments>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listComments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCommentsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAddCommentUrl = (id: number,) => {
+
+
+
+
+  return `/api/decisions/${id}/comments`
+}
+
+/**
+ * @summary Add a comment to a decision
+ */
+export const addComment = async (id: number,
+    commentInput: CommentInput, options?: RequestInit): Promise<Comment> => {
+
+  return customFetch<Comment>(getAddCommentUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(commentInput)
+  }
+);}
+
+
+
+
+
+export const getAddCommentMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addComment>>, TError,{id: number;data: BodyType<CommentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addComment>>, TError,{id: number;data: BodyType<CommentInput>}, TContext> => {
+
+const mutationKey = ['addComment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addComment>>, {id: number;data: BodyType<CommentInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  addComment(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddCommentMutationResult = NonNullable<Awaited<ReturnType<typeof addComment>>>
+    export type AddCommentMutationBody = BodyType<CommentInput>
+    export type AddCommentMutationError = ErrorType<void>
+
+    /**
+ * @summary Add a comment to a decision
+ */
+export const useAddComment = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addComment>>, TError,{id: number;data: BodyType<CommentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof addComment>>,
+        TError,
+        {id: number;data: BodyType<CommentInput>},
+        TContext
+      > => {
+      return useMutation(getAddCommentMutationOptions(options));
+    }
+
+export const getGetDecisionAuditUrl = (id: number,) => {
+
+
+
+
+  return `/api/decisions/${id}/audit`
+}
+
+/**
+ * @summary Get the audit log for a decision
+ */
+export const getDecisionAudit = async (id: number, options?: RequestInit): Promise<AuditEntry[]> => {
+
+  return customFetch<AuditEntry[]>(getGetDecisionAuditUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDecisionAuditQueryKey = (id: number,) => {
+    return [
+    `/api/decisions/${id}/audit`
+    ] as const;
+    }
+
+
+export const getGetDecisionAuditQueryOptions = <TData = Awaited<ReturnType<typeof getDecisionAudit>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDecisionAudit>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDecisionAuditQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDecisionAudit>>> = ({ signal }) => getDecisionAudit(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDecisionAudit>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetDecisionAuditQueryResult = NonNullable<Awaited<ReturnType<typeof getDecisionAudit>>>
+export type GetDecisionAuditQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get the audit log for a decision
+ */
+
+export function useGetDecisionAudit<TData = Awaited<ReturnType<typeof getDecisionAudit>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDecisionAudit>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetDecisionAuditQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getAddOptionUrl = (id: number,) => {
 
@@ -955,7 +1634,7 @@ export const getUpsertRatingUrl = (id: number,) => {
 }
 
 /**
- * @summary Set or update a rating for an option+criterion pair
+ * @summary Set or update the authenticated user's rating for an option+criterion pair
  */
 export const upsertRating = async (id: number,
     ratingInput: RatingInput, options?: RequestInit): Promise<Rating> => {
@@ -1005,7 +1684,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpsertRatingMutationError = ErrorType<void>
 
     /**
- * @summary Set or update a rating for an option+criterion pair
+ * @summary Set or update the authenticated user's rating for an option+criterion pair
  */
 export const useUpsertRating = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof upsertRating>>, TError,{id: number;data: BodyType<RatingInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -1027,11 +1706,11 @@ export const getGetDecisionScoresUrl = (id: number,) => {
 }
 
 /**
- * @summary Get weighted scores for all options in a decision
+ * @summary Get weighted scores for all options, aggregated across all voters
  */
-export const getDecisionScores = async (id: number, options?: RequestInit): Promise<OptionScore[]> => {
+export const getDecisionScores = async (id: number, options?: RequestInit): Promise<DecisionScores> => {
 
-  return customFetch<OptionScore[]>(getGetDecisionScoresUrl(id),
+  return customFetch<DecisionScores>(getGetDecisionScoresUrl(id),
   {
     ...options,
     method: 'GET'
@@ -1074,7 +1753,7 @@ export type GetDecisionScoresQueryError = ErrorType<void>
 
 
 /**
- * @summary Get weighted scores for all options in a decision
+ * @summary Get weighted scores for all options, aggregated across all voters
  */
 
 export function useGetDecisionScores<TData = Awaited<ReturnType<typeof getDecisionScores>>, TError = ErrorType<void>>(

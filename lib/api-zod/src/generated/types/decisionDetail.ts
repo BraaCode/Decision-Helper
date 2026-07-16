@@ -13,7 +13,14 @@ export interface DecisionDetail {
   id: number;
   question: string;
   createdAt: string;
+  teamId?: number;
+  status: string;
+  decidedOptionId?: number;
+  decidedAt?: string;
+  createdByName?: string;
+  isCreator?: boolean;
   options: Option[];
   criteria: Criterion[];
   ratings: Rating[];
+  myRatings: Rating[];
 }

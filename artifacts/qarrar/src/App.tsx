@@ -11,6 +11,8 @@ import Landing from '@/pages/landing';
 import DecisionsList from '@/pages/decisions/index';
 import DecisionWizard from '@/pages/decisions/new';
 import DecisionResults from '@/pages/decisions/[id]';
+import TeamsPage from '@/pages/teams/index';
+import TeamDetail from '@/pages/teams/[id]';
 
 const queryClient = new QueryClient();
 
@@ -182,6 +184,8 @@ function ClerkProviderWithRoutes() {
             <Route path="/decisions" component={() => <ProtectedRoute component={DecisionsList} />} />
             <Route path="/decisions/new" component={() => <ProtectedRoute component={DecisionWizard} />} />
             <Route path="/decisions/:id" component={() => <ProtectedRoute component={DecisionResults} />} />
+            <Route path="/teams" component={() => <ProtectedRoute component={TeamsPage} />} />
+            <Route path="/teams/:id" component={() => <ProtectedRoute component={TeamDetail} />} />
             <Route component={NotFound} />
           </Switch>
           <Toaster />

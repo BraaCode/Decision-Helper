@@ -6,10 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface Rating {
+export interface TeamMember {
   id: number;
-  optionId: number;
-  criterionId: number;
+  teamId: number;
   userId: string;
-  score: number;
+  name: string;
+  role: string;
+  joinedAt: string;
 }

@@ -1,13 +1,23 @@
 import { Router, type IRouter } from "express";
-import { eq, and } from "drizzle-orm";
-import { getAuth } from "@clerk/express";
-import { db, decisionsTable, optionsTable, criteriaTable, ratingsTable } from "@workspace/db";
+import { eq, and, desc, inArray } from "drizzle-orm";
+import {
+  db,
+  decisionsTable,
+  optionsTable,
+  criteriaTable,
+  ratingsTable,
+  commentsTable,
+  auditLogTable,
+  teamMembersTable,
+} from "@workspace/db";
 import {
   CreateDecisionBody,
   UpdateDecisionBody,
   UpdateDecisionParams,
   GetDecisionParams,
   DeleteDecisionParams,
+  DecideDecisionParams,
+  DecideDecisionBody,
   AddOptionParams,
   AddOptionBody,
   UpdateOptionParams,
@@ -21,29 +31,41 @@ import {
   UpsertRatingParams,
   UpsertRatingBody,
   GetDecisionScoresParams,
+  ListCommentsParams,
+  AddCommentParams,
+  AddCommentBody,
+  GetDecisionAuditParams,
 } from "@workspace/api-zod";
+import { requireAuth, findAccessibleDecision, isTeamMember, logAudit } from "./helpers";
 
 const router: IRouter = Router();
 
-function requireAuth(req: any, res: any, next: any) {
-  const auth = getAuth(req);
-  const userId = auth?.sessionClaims?.userId || auth?.userId;
-  if (!userId) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-  req.userId = userId;
-  next();
+function decisionShape(d: typeof decisionsTable.$inferSelect) {
+  return {
+    id: d.id,
+    question: d.question,
+    createdAt: d.createdAt,
+    teamId: d.teamId,
+    status: d.status,
+    decidedOptionId: d.decidedOptionId,
+    decidedAt: d.decidedAt,
+    createdByName: d.createdByName,
+  };
 }
 
-// GET /decisions
+// GET /decisions — personal + team decisions
 router.get("/decisions", requireAuth, async (req: any, res): Promise<void> => {
-  const decisions = await db
-    .select()
-    .from(decisionsTable)
-    .where(eq(decisionsTable.userId, req.userId))
-    .orderBy(decisionsTable.createdAt);
-  res.json(decisions.map((d) => ({ id: d.id, question: d.question, createdAt: d.createdAt })));
+  const memberships = await db.select().from(teamMembersTable).where(eq(teamMembersTable.userId, req.userId));
+  const teamIds = memberships.map((m) => m.teamId);
+  const own = await db.select().from(decisionsTable).where(eq(decisionsTable.userId, req.userId));
+  let teamDecisions: (typeof decisionsTable.$inferSelect)[] = [];
+  if (teamIds.length > 0) {
+    teamDecisions = await db.select().from(decisionsTable).where(inArray(decisionsTable.teamId, teamIds));
+  }
+  const seen = new Set<number>();
+  const all = [...own, ...teamDecisions].filter((d) => (seen.has(d.id) ? false : (seen.add(d.id), true)));
+  all.sort((a, b) => new Date(b.createdAt as any).getTime() - new Date(a.createdAt as any).getTime());
+  res.json(all.map(decisionShape));
 });
 
 // POST /decisions
@@ -53,11 +75,28 @@ router.post("/decisions", requireAuth, async (req: any, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  if (parsed.data.teamId !== undefined && !(await isTeamMember(parsed.data.teamId, req.userId))) {
+    res.status(403).json({ error: "لست عضواً في هذا الفريق" });
+    return;
+  }
   const [decision] = await db
     .insert(decisionsTable)
-    .values({ userId: req.userId, question: parsed.data.question })
+    .values({
+      userId: req.userId,
+      question: parsed.data.question,
+      teamId: parsed.data.teamId ?? null,
+      createdByName: parsed.data.createdByName ?? "",
+    })
     .returning();
-  res.status(201).json({ id: decision.id, question: decision.question, createdAt: decision.createdAt });
+  await logAudit({
+    teamId: decision.teamId,
+    decisionId: decision.id,
+    userId: req.userId,
+    actorName: decision.createdByName,
+    action: "decision_created",
+    detail: `أنشأ قرار «${decision.question}»`,
+  });
+  res.status(201).json(decisionShape(decision));
 });
 
 // GET /decisions/:id
@@ -67,10 +106,7 @@ router.get("/decisions/:id", requireAuth, async (req: any, res): Promise<void> =
     res.status(400).json({ error: params.error.message });
     return;
   }
-  const [decision] = await db
-    .select()
-    .from(decisionsTable)
-    .where(and(eq(decisionsTable.id, params.data.id), eq(decisionsTable.userId, req.userId)));
+  const decision = await findAccessibleDecision(params.data.id, req.userId);
   if (!decision) {
     res.status(404).json({ error: "Decision not found" });
     return;
@@ -80,12 +116,16 @@ router.get("/decisions/:id", requireAuth, async (req: any, res): Promise<void> =
   const optionIds = options.map((o) => o.id);
   let ratings: (typeof ratingsTable.$inferSelect)[] = [];
   if (optionIds.length > 0) {
-    for (const optId of optionIds) {
-      const rs = await db.select().from(ratingsTable).where(eq(ratingsTable.optionId, optId));
-      ratings.push(...rs);
-    }
+    ratings = await db.select().from(ratingsTable).where(inArray(ratingsTable.optionId, optionIds));
   }
-  res.json({ id: decision.id, question: decision.question, createdAt: decision.createdAt, options, criteria, ratings });
+  res.json({
+    ...decisionShape(decision),
+    isCreator: decision.userId === req.userId,
+    options,
+    criteria,
+    ratings,
+    myRatings: ratings.filter((r) => r.userId === req.userId),
+  });
 });
 
 // PATCH /decisions/:id
@@ -113,10 +153,10 @@ router.patch("/decisions/:id", requireAuth, async (req: any, res): Promise<void>
     .set({ question: parsed.data.question })
     .where(eq(decisionsTable.id, params.data.id))
     .returning();
-  res.json({ id: updated.id, question: updated.question, createdAt: updated.createdAt });
+  res.json(decisionShape(updated));
 });
 
-// DELETE /decisions/:id
+// DELETE /decisions/:id — creator only
 router.delete("/decisions/:id", requireAuth, async (req: any, res): Promise<void> => {
   const params = DeleteDecisionParams.safeParse(req.params);
   if (!params.success) {
@@ -132,10 +172,156 @@ router.delete("/decisions/:id", requireAuth, async (req: any, res): Promise<void
     return;
   }
   await db.delete(decisionsTable).where(eq(decisionsTable.id, params.data.id));
+  await logAudit({
+    teamId: existing.teamId,
+    decisionId: existing.id,
+    userId: req.userId,
+    actorName: existing.createdByName,
+    action: "decision_deleted",
+    detail: `حذف قرار «${existing.question}»`,
+  });
   res.sendStatus(204);
 });
 
-// POST /decisions/:id/options
+// POST /decisions/:id/decide — creator marks the final choice
+router.post("/decisions/:id/decide", requireAuth, async (req: any, res): Promise<void> => {
+  const params = DecideDecisionParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const parsed = DecideDecisionBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const decision = await findAccessibleDecision(params.data.id, req.userId);
+  if (!decision) {
+    res.status(404).json({ error: "Decision not found" });
+    return;
+  }
+  if (decision.userId !== req.userId) {
+    res.status(403).json({ error: "فقط صاحب القرار يمكنه اعتماده" });
+    return;
+  }
+  if (decision.status === "decided") {
+    res.status(400).json({ error: "هذا القرار معتمد نهائياً بالفعل" });
+    return;
+  }
+  const [option] = await db
+    .select()
+    .from(optionsTable)
+    .where(and(eq(optionsTable.id, parsed.data.optionId), eq(optionsTable.decisionId, decision.id)));
+  if (!option) {
+    res.status(404).json({ error: "Option not found in this decision" });
+    return;
+  }
+  const [updated] = await db
+    .update(decisionsTable)
+    .set({ status: "decided", decidedOptionId: option.id, decidedAt: new Date() })
+    .where(eq(decisionsTable.id, decision.id))
+    .returning();
+  await logAudit({
+    teamId: decision.teamId,
+    decisionId: decision.id,
+    userId: req.userId,
+    actorName: decision.createdByName,
+    action: "decision_finalized",
+    detail: `اعتمد الخيار «${option.label}» كقرار نهائي`,
+  });
+  res.json(decisionShape(updated));
+});
+
+// GET /decisions/:id/comments
+router.get("/decisions/:id/comments", requireAuth, async (req: any, res): Promise<void> => {
+  const params = ListCommentsParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const decision = await findAccessibleDecision(params.data.id, req.userId);
+  if (!decision) {
+    res.status(404).json({ error: "Decision not found" });
+    return;
+  }
+  const comments = await db
+    .select()
+    .from(commentsTable)
+    .where(eq(commentsTable.decisionId, decision.id))
+    .orderBy(commentsTable.createdAt);
+  res.json(comments);
+});
+
+// POST /decisions/:id/comments
+router.post("/decisions/:id/comments", requireAuth, async (req: any, res): Promise<void> => {
+  const params = AddCommentParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const parsed = AddCommentBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const decision = await findAccessibleDecision(params.data.id, req.userId);
+  if (!decision) {
+    res.status(404).json({ error: "Decision not found" });
+    return;
+  }
+  if (parsed.data.optionId !== undefined) {
+    const [option] = await db
+      .select()
+      .from(optionsTable)
+      .where(and(eq(optionsTable.id, parsed.data.optionId), eq(optionsTable.decisionId, decision.id)));
+    if (!option) {
+      res.status(404).json({ error: "Option not found in this decision" });
+      return;
+    }
+  }
+  const [comment] = await db
+    .insert(commentsTable)
+    .values({
+      decisionId: decision.id,
+      optionId: parsed.data.optionId ?? null,
+      userId: req.userId,
+      authorName: parsed.data.authorName ?? "",
+      body: parsed.data.body,
+    })
+    .returning();
+  await logAudit({
+    teamId: decision.teamId,
+    decisionId: decision.id,
+    userId: req.userId,
+    actorName: parsed.data.authorName,
+    action: "comment_added",
+    detail: `علّق على القرار`,
+  });
+  res.status(201).json(comment);
+});
+
+// GET /decisions/:id/audit
+router.get("/decisions/:id/audit", requireAuth, async (req: any, res): Promise<void> => {
+  const params = GetDecisionAuditParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const decision = await findAccessibleDecision(params.data.id, req.userId);
+  if (!decision) {
+    res.status(404).json({ error: "Decision not found" });
+    return;
+  }
+  const entries = await db
+    .select()
+    .from(auditLogTable)
+    .where(eq(auditLogTable.decisionId, decision.id))
+    .orderBy(desc(auditLogTable.createdAt))
+    .limit(200);
+  res.json(entries);
+});
+
+// POST /decisions/:id/options — creator only, max 5
 router.post("/decisions/:id/options", requireAuth, async (req: any, res): Promise<void> => {
   const params = AddOptionParams.safeParse(req.params);
   if (!params.success) {
@@ -155,6 +341,10 @@ router.post("/decisions/:id/options", requireAuth, async (req: any, res): Promis
     res.status(404).json({ error: "Decision not found" });
     return;
   }
+  if (decision.status === "decided") {
+    res.status(400).json({ error: "هذا القرار معتمد نهائياً — لا يمكن تعديل بنيته" });
+    return;
+  }
   const existing = await db.select().from(optionsTable).where(eq(optionsTable.decisionId, params.data.id));
   if (existing.length >= 5) {
     res.status(400).json({ error: "لا يمكن إضافة أكثر من 5 خيارات" });
@@ -167,7 +357,7 @@ router.post("/decisions/:id/options", requireAuth, async (req: any, res): Promis
   res.status(201).json(option);
 });
 
-// PATCH /decisions/:id/options/:optionId
+// PATCH /decisions/:id/options/:optionId — creator only
 router.patch("/decisions/:id/options/:optionId", requireAuth, async (req: any, res): Promise<void> => {
   const params = UpdateOptionParams.safeParse(req.params);
   if (!params.success) {
@@ -179,13 +369,16 @@ router.patch("/decisions/:id/options/:optionId", requireAuth, async (req: any, r
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  // Verify ownership
   const [decision] = await db
     .select()
     .from(decisionsTable)
     .where(and(eq(decisionsTable.id, params.data.id), eq(decisionsTable.userId, req.userId)));
   if (!decision) {
     res.status(404).json({ error: "Decision not found" });
+    return;
+  }
+  if (decision.status === "decided") {
+    res.status(400).json({ error: "هذا القرار معتمد نهائياً — لا يمكن تعديل بنيته" });
     return;
   }
   const [updated] = await db
@@ -200,7 +393,7 @@ router.patch("/decisions/:id/options/:optionId", requireAuth, async (req: any, r
   res.json(updated);
 });
 
-// DELETE /decisions/:id/options/:optionId
+// DELETE /decisions/:id/options/:optionId — creator only
 router.delete("/decisions/:id/options/:optionId", requireAuth, async (req: any, res): Promise<void> => {
   const params = DeleteOptionParams.safeParse(req.params);
   if (!params.success) {
@@ -215,6 +408,10 @@ router.delete("/decisions/:id/options/:optionId", requireAuth, async (req: any, 
     res.status(404).json({ error: "Decision not found" });
     return;
   }
+  if (decision.status === "decided") {
+    res.status(400).json({ error: "هذا القرار معتمد نهائياً — لا يمكن تعديل بنيته" });
+    return;
+  }
   const [deleted] = await db
     .delete(optionsTable)
     .where(and(eq(optionsTable.id, params.data.optionId), eq(optionsTable.decisionId, params.data.id)))
@@ -226,7 +423,7 @@ router.delete("/decisions/:id/options/:optionId", requireAuth, async (req: any, 
   res.sendStatus(204);
 });
 
-// POST /decisions/:id/criteria
+// POST /decisions/:id/criteria — creator only
 router.post("/decisions/:id/criteria", requireAuth, async (req: any, res): Promise<void> => {
   const params = AddCriterionParams.safeParse(req.params);
   if (!params.success) {
@@ -246,6 +443,10 @@ router.post("/decisions/:id/criteria", requireAuth, async (req: any, res): Promi
     res.status(404).json({ error: "Decision not found" });
     return;
   }
+  if (decision.status === "decided") {
+    res.status(400).json({ error: "هذا القرار معتمد نهائياً — لا يمكن تعديل بنيته" });
+    return;
+  }
   const existing = await db.select().from(criteriaTable).where(eq(criteriaTable.decisionId, params.data.id));
   const [criterion] = await db
     .insert(criteriaTable)
@@ -254,7 +455,7 @@ router.post("/decisions/:id/criteria", requireAuth, async (req: any, res): Promi
   res.status(201).json(criterion);
 });
 
-// PATCH /decisions/:id/criteria/:criterionId
+// PATCH /decisions/:id/criteria/:criterionId — creator only
 router.patch("/decisions/:id/criteria/:criterionId", requireAuth, async (req: any, res): Promise<void> => {
   const params = UpdateCriterionParams.safeParse(req.params);
   if (!params.success) {
@@ -274,6 +475,10 @@ router.patch("/decisions/:id/criteria/:criterionId", requireAuth, async (req: an
     res.status(404).json({ error: "Decision not found" });
     return;
   }
+  if (decision.status === "decided") {
+    res.status(400).json({ error: "هذا القرار معتمد نهائياً — لا يمكن تعديل بنيته" });
+    return;
+  }
   const updateFields: Partial<{ label: string; weight: number }> = {};
   if (parsed.data.label !== undefined) updateFields.label = parsed.data.label;
   if (parsed.data.weight !== undefined) updateFields.weight = parsed.data.weight;
@@ -289,7 +494,7 @@ router.patch("/decisions/:id/criteria/:criterionId", requireAuth, async (req: an
   res.json(updated);
 });
 
-// DELETE /decisions/:id/criteria/:criterionId
+// DELETE /decisions/:id/criteria/:criterionId — creator only
 router.delete("/decisions/:id/criteria/:criterionId", requireAuth, async (req: any, res): Promise<void> => {
   const params = DeleteCriterionParams.safeParse(req.params);
   if (!params.success) {
@@ -304,6 +509,10 @@ router.delete("/decisions/:id/criteria/:criterionId", requireAuth, async (req: a
     res.status(404).json({ error: "Decision not found" });
     return;
   }
+  if (decision.status === "decided") {
+    res.status(400).json({ error: "هذا القرار معتمد نهائياً — لا يمكن تعديل بنيته" });
+    return;
+  }
   const [deleted] = await db
     .delete(criteriaTable)
     .where(and(eq(criteriaTable.id, params.data.criterionId), eq(criteriaTable.decisionId, params.data.id)))
@@ -315,7 +524,7 @@ router.delete("/decisions/:id/criteria/:criterionId", requireAuth, async (req: a
   res.sendStatus(204);
 });
 
-// PUT /decisions/:id/ratings
+// PUT /decisions/:id/ratings — per-user vote, any member can rate
 router.put("/decisions/:id/ratings", requireAuth, async (req: any, res): Promise<void> => {
   const params = UpsertRatingParams.safeParse(req.params);
   if (!params.success) {
@@ -327,15 +536,15 @@ router.put("/decisions/:id/ratings", requireAuth, async (req: any, res): Promise
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const [decision] = await db
-    .select()
-    .from(decisionsTable)
-    .where(and(eq(decisionsTable.id, params.data.id), eq(decisionsTable.userId, req.userId)));
+  const decision = await findAccessibleDecision(params.data.id, req.userId);
   if (!decision) {
     res.status(404).json({ error: "Decision not found" });
     return;
   }
-  // Verify optionId belongs to this decision
+  if (decision.status === "decided") {
+    res.status(400).json({ error: "هذا القرار معتمد نهائياً — لا يمكن تعديل التصويت" });
+    return;
+  }
   const [option] = await db
     .select()
     .from(optionsTable)
@@ -344,7 +553,6 @@ router.put("/decisions/:id/ratings", requireAuth, async (req: any, res): Promise
     res.status(404).json({ error: "Option not found in this decision" });
     return;
   }
-  // Verify criterionId belongs to this decision
   const [criterion] = await db
     .select()
     .from(criteriaTable)
@@ -353,39 +561,30 @@ router.put("/decisions/:id/ratings", requireAuth, async (req: any, res): Promise
     res.status(404).json({ error: "Criterion not found in this decision" });
     return;
   }
-  const existing = await db
-    .select()
-    .from(ratingsTable)
-    .where(and(eq(ratingsTable.optionId, parsed.data.optionId), eq(ratingsTable.criterionId, parsed.data.criterionId)));
-  let rating;
-  if (existing.length > 0) {
-    const [updated] = await db
-      .update(ratingsTable)
-      .set({ score: parsed.data.score })
-      .where(eq(ratingsTable.id, existing[0].id))
-      .returning();
-    rating = updated;
-  } else {
-    const [created] = await db
-      .insert(ratingsTable)
-      .values({ optionId: parsed.data.optionId, criterionId: parsed.data.criterionId, score: parsed.data.score })
-      .returning();
-    rating = created;
-  }
+  const [rating] = await db
+    .insert(ratingsTable)
+    .values({
+      optionId: parsed.data.optionId,
+      criterionId: parsed.data.criterionId,
+      userId: req.userId,
+      score: parsed.data.score,
+    })
+    .onConflictDoUpdate({
+      target: [ratingsTable.optionId, ratingsTable.criterionId, ratingsTable.userId],
+      set: { score: parsed.data.score },
+    })
+    .returning();
   res.json(rating);
 });
 
-// GET /decisions/:id/scores
+// GET /decisions/:id/scores — aggregated across all voters
 router.get("/decisions/:id/scores", requireAuth, async (req: any, res): Promise<void> => {
   const params = GetDecisionScoresParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
     return;
   }
-  const [decision] = await db
-    .select()
-    .from(decisionsTable)
-    .where(and(eq(decisionsTable.id, params.data.id), eq(decisionsTable.userId, req.userId)));
+  const decision = await findAccessibleDecision(params.data.id, req.userId);
   if (!decision) {
     res.status(404).json({ error: "Decision not found" });
     return;
@@ -393,22 +592,35 @@ router.get("/decisions/:id/scores", requireAuth, async (req: any, res): Promise<
   const options = await db.select().from(optionsTable).where(eq(optionsTable.decisionId, params.data.id)).orderBy(optionsTable.sortOrder);
   const criteria = await db.select().from(criteriaTable).where(eq(criteriaTable.decisionId, params.data.id));
   const totalMaxScore = criteria.reduce((sum, c) => sum + c.weight * 5, 0);
+  const optionIds = options.map((o) => o.id);
+  let allRatings: (typeof ratingsTable.$inferSelect)[] = [];
+  if (optionIds.length > 0) {
+    allRatings = await db.select().from(ratingsTable).where(inArray(ratingsTable.optionId, optionIds));
+  }
+  const voters = new Set(allRatings.map((r) => r.userId));
 
-  const scores = await Promise.all(
-    options.map(async (opt) => {
-      const ratings = await db.select().from(ratingsTable).where(eq(ratingsTable.optionId, opt.id));
-      const totalScore = ratings.reduce((sum, r) => {
-        const criterion = criteria.find((c) => c.id === r.criterionId);
-        return sum + (criterion ? r.score * criterion.weight : 0);
-      }, 0);
-      const percentage = totalMaxScore > 0 ? Math.round((totalScore / totalMaxScore) * 100) : 0;
-      return { optionId: opt.id, label: opt.label, totalScore, maxScore: totalMaxScore, percentage };
-    }),
-  );
+  const scores = options.map((opt) => {
+    // average score per criterion across all voters, then weight
+    let totalScore = 0;
+    for (const criterion of criteria) {
+      const rs = allRatings.filter((r) => r.optionId === opt.id && r.criterionId === criterion.id);
+      if (rs.length > 0) {
+        const avg = rs.reduce((s, r) => s + r.score, 0) / rs.length;
+        totalScore += avg * criterion.weight;
+      }
+    }
+    totalScore = Math.round(totalScore * 10) / 10;
+    const percentage = totalMaxScore > 0 ? Math.round((totalScore / totalMaxScore) * 100) : 0;
+    return { optionId: opt.id, label: opt.label, totalScore, maxScore: totalMaxScore, percentage };
+  });
 
   const maxPercentage = Math.max(...scores.map((s) => s.percentage), 0);
   const result = scores.map((s) => ({ ...s, isWinner: s.percentage === maxPercentage && maxPercentage > 0 }));
-  res.json(result);
+
+  const myRatings = allRatings.filter((r) => r.userId === req.userId);
+  const myVoteComplete = criteria.length > 0 && options.length > 0 && myRatings.length >= criteria.length * options.length;
+
+  res.json({ scores: result, voterCount: voters.size, myVoteComplete });
 });
 
 export default router;

@@ -6,13 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface Decision {
+export interface Team {
   id: number;
-  question: string;
+  name: string;
+  ownerId: string;
+  inviteCode: string;
   createdAt: string;
-  teamId?: number;
-  status: string;
-  decidedOptionId?: number;
-  decidedAt?: string;
-  createdByName?: string;
+  memberCount: number;
 }

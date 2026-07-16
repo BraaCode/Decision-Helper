@@ -17,12 +17,127 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
+ * @summary List teams the authenticated user belongs to
+ */
+export const ListTeamsResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "ownerId": zod.string(),
+  "inviteCode": zod.string(),
+  "createdAt": zod.string(),
+  "memberCount": zod.number()
+})
+export const ListTeamsResponse = zod.array(ListTeamsResponseItem)
+
+
+/**
+ * @summary Create a new team
+ */
+
+
+
+export const CreateTeamBody = zod.object({
+  "name": zod.string().min(1),
+  "memberName": zod.string()
+})
+
+export const CreateTeamResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "ownerId": zod.string(),
+  "inviteCode": zod.string(),
+  "createdAt": zod.string(),
+  "memberCount": zod.number()
+})
+
+
+/**
+ * @summary Join a team using an invite code
+ */
+
+
+
+export const JoinTeamBody = zod.object({
+  "code": zod.string().min(1),
+  "memberName": zod.string()
+})
+
+export const JoinTeamResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "ownerId": zod.string(),
+  "inviteCode": zod.string(),
+  "createdAt": zod.string(),
+  "memberCount": zod.number()
+})
+
+
+/**
+ * @summary Get team detail with members and decisions
+ */
+export const GetTeamParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetTeamResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "ownerId": zod.string(),
+  "inviteCode": zod.string(),
+  "createdAt": zod.string(),
+  "members": zod.array(zod.object({
+  "id": zod.number(),
+  "teamId": zod.number(),
+  "userId": zod.string(),
+  "name": zod.string(),
+  "role": zod.string(),
+  "joinedAt": zod.string()
+})),
+  "decisions": zod.array(zod.object({
+  "id": zod.number(),
+  "question": zod.string(),
+  "createdAt": zod.string(),
+  "teamId": zod.number().optional(),
+  "status": zod.string(),
+  "decidedOptionId": zod.number().optional(),
+  "decidedAt": zod.string().optional(),
+  "createdByName": zod.string().optional()
+}))
+})
+
+
+/**
+ * @summary Get the audit log for a team
+ */
+export const GetTeamAuditParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetTeamAuditResponseItem = zod.object({
+  "id": zod.number(),
+  "teamId": zod.number().optional(),
+  "decisionId": zod.number().optional(),
+  "userId": zod.string(),
+  "actorName": zod.string(),
+  "action": zod.string(),
+  "detail": zod.string(),
+  "createdAt": zod.string()
+})
+export const GetTeamAuditResponse = zod.array(GetTeamAuditResponseItem)
+
+
+/**
  * @summary List all decisions for the authenticated user
  */
 export const ListDecisionsResponseItem = zod.object({
   "id": zod.number(),
   "question": zod.string(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "teamId": zod.number().optional(),
+  "status": zod.string(),
+  "decidedOptionId": zod.number().optional(),
+  "decidedAt": zod.string().optional(),
+  "createdByName": zod.string().optional()
 })
 export const ListDecisionsResponse = zod.array(ListDecisionsResponseItem)
 
@@ -34,13 +149,20 @@ export const ListDecisionsResponse = zod.array(ListDecisionsResponseItem)
 
 
 export const CreateDecisionBody = zod.object({
-  "question": zod.string().min(1)
+  "question": zod.string().min(1),
+  "teamId": zod.number().optional(),
+  "createdByName": zod.string().optional()
 })
 
 export const CreateDecisionResponse = zod.object({
   "id": zod.number(),
   "question": zod.string(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "teamId": zod.number().optional(),
+  "status": zod.string(),
+  "decidedOptionId": zod.number().optional(),
+  "decidedAt": zod.string().optional(),
+  "createdByName": zod.string().optional()
 })
 
 
@@ -55,6 +177,12 @@ export const GetDecisionResponse = zod.object({
   "id": zod.number(),
   "question": zod.string(),
   "createdAt": zod.string(),
+  "teamId": zod.number().optional(),
+  "status": zod.string(),
+  "decidedOptionId": zod.number().optional(),
+  "decidedAt": zod.string().optional(),
+  "createdByName": zod.string().optional(),
+  "isCreator": zod.boolean().optional(),
   "options": zod.array(zod.object({
   "id": zod.number(),
   "decisionId": zod.number(),
@@ -72,6 +200,14 @@ export const GetDecisionResponse = zod.object({
   "id": zod.number(),
   "optionId": zod.number(),
   "criterionId": zod.number(),
+  "userId": zod.string(),
+  "score": zod.number()
+})),
+  "myRatings": zod.array(zod.object({
+  "id": zod.number(),
+  "optionId": zod.number(),
+  "criterionId": zod.number(),
+  "userId": zod.string(),
   "score": zod.number()
 }))
 })
@@ -94,7 +230,12 @@ export const UpdateDecisionBody = zod.object({
 export const UpdateDecisionResponse = zod.object({
   "id": zod.number(),
   "question": zod.string(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "teamId": zod.number().optional(),
+  "status": zod.string(),
+  "decidedOptionId": zod.number().optional(),
+  "decidedAt": zod.string().optional(),
+  "createdByName": zod.string().optional()
 })
 
 
@@ -106,6 +247,95 @@ export const DeleteDecisionParams = zod.object({
 })
 
 export const DeleteDecisionResponse = zod.void()
+
+
+/**
+ * @summary Mark an option as the final decision (creator only)
+ */
+export const DecideDecisionParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DecideDecisionBody = zod.object({
+  "optionId": zod.number()
+})
+
+export const DecideDecisionResponse = zod.object({
+  "id": zod.number(),
+  "question": zod.string(),
+  "createdAt": zod.string(),
+  "teamId": zod.number().optional(),
+  "status": zod.string(),
+  "decidedOptionId": zod.number().optional(),
+  "decidedAt": zod.string().optional(),
+  "createdByName": zod.string().optional()
+})
+
+
+/**
+ * @summary List comments on a decision
+ */
+export const ListCommentsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ListCommentsResponseItem = zod.object({
+  "id": zod.number(),
+  "decisionId": zod.number(),
+  "optionId": zod.number().optional(),
+  "userId": zod.string(),
+  "authorName": zod.string(),
+  "body": zod.string(),
+  "createdAt": zod.string()
+})
+export const ListCommentsResponse = zod.array(ListCommentsResponseItem)
+
+
+/**
+ * @summary Add a comment to a decision
+ */
+export const AddCommentParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+export const AddCommentBody = zod.object({
+  "body": zod.string().min(1),
+  "authorName": zod.string(),
+  "optionId": zod.number().optional()
+})
+
+export const AddCommentResponse = zod.object({
+  "id": zod.number(),
+  "decisionId": zod.number(),
+  "optionId": zod.number().optional(),
+  "userId": zod.string(),
+  "authorName": zod.string(),
+  "body": zod.string(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Get the audit log for a decision
+ */
+export const GetDecisionAuditParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetDecisionAuditResponseItem = zod.object({
+  "id": zod.number(),
+  "teamId": zod.number().optional(),
+  "decisionId": zod.number().optional(),
+  "userId": zod.string(),
+  "actorName": zod.string(),
+  "action": zod.string(),
+  "detail": zod.string(),
+  "createdAt": zod.string()
+})
+export const GetDecisionAuditResponse = zod.array(GetDecisionAuditResponseItem)
 
 
 /**
@@ -229,7 +459,7 @@ export const DeleteCriterionResponse = zod.void()
 
 
 /**
- * @summary Set or update a rating for an option+criterion pair
+ * @summary Set or update the authenticated user's rating for an option+criterion pair
  */
 export const UpsertRatingParams = zod.object({
   "id": zod.coerce.number()
@@ -249,25 +479,29 @@ export const UpsertRatingResponse = zod.object({
   "id": zod.number(),
   "optionId": zod.number(),
   "criterionId": zod.number(),
+  "userId": zod.string(),
   "score": zod.number()
 })
 
 
 /**
- * @summary Get weighted scores for all options in a decision
+ * @summary Get weighted scores for all options, aggregated across all voters
  */
 export const GetDecisionScoresParams = zod.object({
   "id": zod.coerce.number()
 })
 
-export const GetDecisionScoresResponseItem = zod.object({
+export const GetDecisionScoresResponse = zod.object({
+  "scores": zod.array(zod.object({
   "optionId": zod.number(),
   "label": zod.string(),
   "totalScore": zod.number(),
   "maxScore": zod.number(),
   "percentage": zod.number(),
   "isWinner": zod.boolean().optional()
+})),
+  "voterCount": zod.number(),
+  "myVoteComplete": zod.boolean()
 })
-export const GetDecisionScoresResponse = zod.array(GetDecisionScoresResponseItem)
 
 

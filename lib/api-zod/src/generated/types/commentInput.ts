@@ -6,10 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface Rating {
-  id: number;
-  optionId: number;
-  criterionId: number;
-  userId: string;
-  score: number;
+export interface CommentInput {
+  /** @minLength 1 */
+  body: string;
+  authorName: string;
+  optionId?: number;
 }

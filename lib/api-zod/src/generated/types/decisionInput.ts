@@ -9,4 +9,6 @@
 export interface DecisionInput {
   /** @minLength 1 */
   question: string;
+  teamId?: number;
+  createdByName?: string;
 }

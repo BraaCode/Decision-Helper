@@ -6,17 +6,27 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './auditEntry';
+export * from './comment';
+export * from './commentInput';
 export * from './criterion';
 export * from './criterionInput';
 export * from './criterionUpdate';
+export * from './decideInput';
 export * from './decision';
 export * from './decisionDetail';
 export * from './decisionInput';
+export * from './decisionScores';
 export * from './decisionUpdate';
 export * from './healthStatus';
+export * from './joinTeamInput';
 export * from './option';
 export * from './optionInput';
 export * from './optionScore';
 export * from './optionUpdate';
 export * from './rating';
 export * from './ratingInput';
+export * from './team';
+export * from './teamDetail';
+export * from './teamInput';
+export * from './teamMember';

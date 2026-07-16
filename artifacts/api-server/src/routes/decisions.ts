@@ -156,6 +156,10 @@ router.post("/decisions/:id/options", requireAuth, async (req: any, res): Promis
     return;
   }
   const existing = await db.select().from(optionsTable).where(eq(optionsTable.decisionId, params.data.id));
+  if (existing.length >= 5) {
+    res.status(400).json({ error: "لا يمكن إضافة أكثر من 5 خيارات" });
+    return;
+  }
   const [option] = await db
     .insert(optionsTable)
     .values({ decisionId: params.data.id, label: parsed.data.label, sortOrder: existing.length })

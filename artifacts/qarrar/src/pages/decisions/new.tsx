@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,12 +13,14 @@ import {
   getGetDecisionQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 type Step = 1 | 2 | 3 | 4;
 
 export default function DecisionWizard() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [step, setStep] = useState<Step>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -26,7 +28,7 @@ export default function DecisionWizard() {
   const [question, setQuestion] = useState("");
   const [options, setOptions] = useState([{ id: 1, label: "" }, { id: 2, label: "" }]);
   const [criteria, setCriteria] = useState([{ id: 1, label: "", weight: 3 }]);
-  const [ratings, setRatings] = useState<Record<string, number>>({}); // key: `${optionId}-${criterionId}`, value: score
+  const [ratings, setRatings] = useState<Record<string, number>>({});
 
   // API Hooks
   const createDecision = useCreateDecision();
@@ -69,53 +71,46 @@ export default function DecisionWizard() {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
-      // 1. Create Decision
       const decision = await createDecision.mutateAsync({ data: { question } });
       const decisionId = decision.id;
 
-      // 2. Add Options
       const validOptions = options.filter(o => o.label.trim());
       const optionResults = await Promise.all(
         validOptions.map(o => addOption.mutateAsync({ id: decisionId, data: { label: o.label.trim() } }))
       );
 
-      // 3. Add Criteria
       const validCriteria = criteria.filter(c => c.label.trim());
       const criteriaResults = await Promise.all(
         validCriteria.map(c => addCriterion.mutateAsync({ id: decisionId, data: { label: c.label.trim(), weight: c.weight } }))
       );
 
-      // 4. Add Ratings
       const ratingPromises = [];
       for (let i = 0; i < optionResults.length; i++) {
         const opt = optionResults[i];
         const origOptId = validOptions[i].id;
-        
         for (let j = 0; j < criteriaResults.length; j++) {
           const crit = criteriaResults[j];
           const origCritId = validCriteria[j].id;
-          
-          const score = ratings[`${origOptId}-${origCritId}`] || 3; // default to 3 if unrated
+          const score = ratings[`${origOptId}-${origCritId}`] || 3;
           ratingPromises.push(
-            upsertRating.mutateAsync({
-              id: decisionId,
-              data: { optionId: opt.id, criterionId: crit.id, score }
-            })
+            upsertRating.mutateAsync({ id: decisionId, data: { optionId: opt.id, criterionId: crit.id, score } })
           );
         }
       }
-      
       await Promise.all(ratingPromises);
-      
-      // Navigate to results
+
+      queryClient.invalidateQueries({ queryKey: getGetDecisionQueryKey(decisionId) });
       setLocation(`/decisions/${decisionId}`);
-    } catch (error) {
-      console.error("Failed to save decision", error);
+    } catch {
+      toast({
+        title: "تعذّر حفظ القرار",
+        description: "حدث خطأ أثناء الحفظ. تحقق من اتصالك وحاول مرة أخرى.",
+        variant: "destructive",
+      });
       setIsSubmitting(false);
     }
   };
 
-  // Validation checks for next buttons
   const isStep1Valid = question.trim().length > 0;
   const isStep2Valid = options.filter(o => o.label.trim()).length >= 2;
   const isStep3Valid = criteria.filter(c => c.label.trim()).length >= 1;
@@ -127,7 +122,7 @@ export default function DecisionWizard() {
     <div className="min-h-screen bg-background flex flex-col">
       <header className="border-b border-border bg-card/50 px-6 h-16 flex items-center justify-between sticky top-0 z-10 backdrop-blur-sm">
         <Link href="/decisions" className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground">
-          <ArrowRight className="h-4 w-4 ml-2" />
+          <ArrowRight className="h-4 w-4 me-2" />
           إلغاء
         </Link>
         <div className="flex items-center gap-1.5 text-sm font-medium">
@@ -152,10 +147,11 @@ export default function DecisionWizard() {
               placeholder="مثال: أي سيارة يجب أن أشتري؟"
               className="text-xl h-16 px-6 bg-card border-2"
               autoFocus
+              onKeyDown={(e) => e.key === "Enter" && handleNext()}
             />
-            <div className="mt-12 flex justify-end">
+            <div className="mt-12 flex justify-start">
               <Button onClick={handleNext} disabled={!isStep1Valid} size="lg" className="h-12 px-8 text-lg">
-                التالي <ChevronLeft className="h-5 w-5 mr-2" />
+                التالي <ChevronLeft className="h-5 w-5 ms-2" />
               </Button>
             </div>
           </div>
@@ -194,16 +190,16 @@ export default function DecisionWizard() {
 
             {options.length < 5 && (
               <Button variant="outline" onClick={addOptionField} className="mt-6 h-12 border-dashed">
-                <Plus className="h-5 w-5 ml-2" /> إضافة خيار آخر
+                <Plus className="h-5 w-5 me-2" /> إضافة خيار آخر
               </Button>
             )}
 
             <div className="mt-auto pt-12 flex justify-between">
               <Button variant="ghost" onClick={handleBack} size="lg" className="h-12 text-lg">
-                <ChevronRight className="h-5 w-5 ml-2" /> السابق
+                <ChevronRight className="h-5 w-5 me-2" /> السابق
               </Button>
               <Button onClick={handleNext} disabled={!isStep2Valid} size="lg" className="h-12 px-8 text-lg">
-                التالي <ChevronLeft className="h-5 w-5 mr-2" />
+                التالي <ChevronLeft className="h-5 w-5 ms-2" />
               </Button>
             </div>
           </div>
@@ -212,7 +208,7 @@ export default function DecisionWizard() {
         {step === 3 && (
           <div className="flex-1 flex flex-col max-w-xl mx-auto w-full animate-in slide-in-from-bottom-4 fade-in">
             <h1 className="text-3xl font-bold text-foreground mb-4">ما هي المعايير المهمة؟</h1>
-            <p className="text-muted-foreground mb-8">أضف العوامل التي ستؤثر على قرارك، وحدد مدى أهمية كل منها (1 = أقل أهمية، 5 = شديد الأهمية).</p>
+            <p className="text-muted-foreground mb-8">أضف العوامل التي ستؤثر على قرارك، وحدد مدى أهمية كل منها.</p>
             
             <div className="space-y-6">
               {criteria.map((crit, idx) => (
@@ -222,12 +218,12 @@ export default function DecisionWizard() {
                       variant="ghost" 
                       size="icon" 
                       onClick={() => removeCriterionField(crit.id)} 
-                      className="absolute top-3 left-3 text-muted-foreground hover:text-destructive h-8 w-8"
+                      className="absolute top-3 end-3 text-muted-foreground hover:text-destructive h-8 w-8"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   )}
-                  <div className="pr-2">
+                  <div className="pe-2">
                     <Label className="text-sm font-semibold mb-2 block text-muted-foreground">اسم المعيار</Label>
                     <Input
                       value={crit.label}
@@ -241,7 +237,7 @@ export default function DecisionWizard() {
                       autoFocus={idx === criteria.length - 1}
                     />
                   </div>
-                  <div className="pr-2">
+                  <div className="pe-2">
                     <div className="flex justify-between items-center mb-3">
                       <Label className="text-sm font-semibold text-muted-foreground">الأهمية: <span className="text-foreground text-base">{crit.weight}</span></Label>
                     </div>
@@ -267,15 +263,15 @@ export default function DecisionWizard() {
             </div>
 
             <Button variant="outline" onClick={addCriterionField} className="mt-6 h-12 border-dashed">
-              <Plus className="h-5 w-5 ml-2" /> إضافة معيار آخر
+              <Plus className="h-5 w-5 me-2" /> إضافة معيار آخر
             </Button>
 
             <div className="mt-auto pt-12 flex justify-between">
               <Button variant="ghost" onClick={handleBack} size="lg" className="h-12 text-lg">
-                <ChevronRight className="h-5 w-5 ml-2" /> السابق
+                <ChevronRight className="h-5 w-5 me-2" /> السابق
               </Button>
               <Button onClick={handleNext} disabled={!isStep3Valid} size="lg" className="h-12 px-8 text-lg">
-                التالي <ChevronLeft className="h-5 w-5 mr-2" />
+                التالي <ChevronLeft className="h-5 w-5 ms-2" />
               </Button>
             </div>
           </div>
@@ -326,13 +322,13 @@ export default function DecisionWizard() {
 
             <div className="mt-auto pt-6 flex justify-between sticky bottom-0 bg-background/80 backdrop-blur-md pb-6">
               <Button variant="ghost" onClick={handleBack} size="lg" className="h-12 text-lg" disabled={isSubmitting}>
-                <ChevronRight className="h-5 w-5 ml-2" /> السابق
+                <ChevronRight className="h-5 w-5 me-2" /> السابق
               </Button>
               <Button onClick={handleSubmit} disabled={isSubmitting} size="lg" className="h-12 px-8 text-lg bg-primary hover:bg-primary/90">
                 {isSubmitting ? (
                   <span className="animate-pulse">جاري الحفظ...</span>
                 ) : (
-                  <>احصل على النتيجة <Save className="h-5 w-5 mr-2" /></>
+                  <>احصل على النتيجة <Save className="h-5 w-5 ms-2" /></>
                 )}
               </Button>
             </div>

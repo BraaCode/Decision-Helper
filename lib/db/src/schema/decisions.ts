@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -41,7 +41,9 @@ export const ratingsTable = pgTable("ratings", {
   optionId: integer("option_id").notNull().references(() => optionsTable.id, { onDelete: "cascade" }),
   criterionId: integer("criterion_id").notNull().references(() => criteriaTable.id, { onDelete: "cascade" }),
   score: integer("score").notNull().default(3),
-});
+}, (t) => [
+  unique("ratings_option_criterion_uniq").on(t.optionId, t.criterionId),
+]);
 
 export const insertRatingSchema = createInsertSchema(ratingsTable).omit({ id: true });
 export type InsertRating = z.infer<typeof insertRatingSchema>;

@@ -21,6 +21,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 
 export default function DecisionsList() {
@@ -29,6 +30,7 @@ export default function DecisionsList() {
   const { data: decisions, isLoading } = useListDecisions();
   const deleteDecision = useDeleteDecision();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const handleDelete = (id: number) => {
@@ -37,6 +39,14 @@ export default function DecisionsList() {
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getListDecisionsQueryKey() });
+          setDeletingId(null);
+        },
+        onError: () => {
+          toast({
+            title: "تعذّر حذف القرار",
+            description: "حدث خطأ أثناء الحذف. حاول مرة أخرى.",
+            variant: "destructive",
+          });
           setDeletingId(null);
         },
       }
@@ -117,7 +127,7 @@ export default function DecisionsList() {
                 <div className="flex items-center justify-between pt-4 border-t border-border mt-auto">
                   <Link href={`/decisions/${decision.id}`} className="flex items-center text-sm font-medium text-primary hover:text-primary/80">
                     <span>عرض التفاصيل</span>
-                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    <ChevronLeft className="h-4 w-4 ms-1" />
                   </Link>
 
                   <AlertDialog open={deletingId === decision.id} onOpenChange={(open) => !open && setDeletingId(null)}>
@@ -125,7 +135,7 @@ export default function DecisionsList() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 -ml-2"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 -me-2"
                         onClick={(e) => {
                           e.stopPropagation();
                           setDeletingId(decision.id);
@@ -134,7 +144,7 @@ export default function DecisionsList() {
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </AlertDialogTrigger>
-                    <AlertDialogContent>
+                    <AlertDialogContent dir="rtl">
                       <AlertDialogHeader>
                         <AlertDialogTitle>هل أنت متأكد من حذف هذا القرار؟</AlertDialogTitle>
                         <AlertDialogDescription>

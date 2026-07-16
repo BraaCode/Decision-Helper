@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;500;600;700&family=El+Messiri:wght@400;500;600;700&display=swap');
 
 @layer theme, base, clerk, components, utilities;
 @import 'tailwindcss';
@@ -61,6 +61,7 @@
   --color-sidebar-ring: hsl(var(--sidebar-ring));
 
   --font-sans: var(--app-font-sans);
+  --font-display: var(--app-font-display);
   --font-serif: var(--app-font-serif);
   --font-mono: var(--app-font-mono);
 
@@ -79,58 +80,60 @@
   --elevate-1: rgba(0, 0, 0, 0.03);
   --elevate-2: rgba(0, 0, 0, 0.08);
 
-  /* Warm minimalistic palette */
-  --background: 40 33% 98%;
-  --foreground: 20 14% 15%;
-  --border: 40 13% 90%;
+  /* Deep rust × warm sand — distinctive, not generic */
+  --background: 38 28% 97%;
+  --foreground: 18 18% 13%;
+  --border: 38 18% 88%;
   --card: 0 0% 100%;
-  --card-foreground: 20 14% 15%;
-  --card-border: 40 13% 92%;
+  --card-foreground: 18 18% 13%;
+  --card-border: 38 18% 91%;
   --popover: 0 0% 100%;
-  --popover-foreground: 20 14% 15%;
-  --popover-border: 40 13% 90%;
-  
-  --primary: 15 50% 50%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 40 20% 92%;
-  --secondary-foreground: 20 14% 15%;
-  --muted: 40 20% 94%;
-  --muted-foreground: 20 10% 40%;
-  --accent: 15 40% 94%;
-  --accent-foreground: 15 50% 30%;
-  --destructive: 0 60% 50%;
+  --popover-foreground: 18 18% 13%;
+  --popover-border: 38 18% 88%;
+
+  /* Deeper, richer burnt-sienna primary — far from generic terracotta */
+  --primary: 17 72% 40%;
+  --primary-foreground: 38 100% 98%;
+  --secondary: 38 22% 91%;
+  --secondary-foreground: 18 18% 13%;
+  --muted: 38 22% 93%;
+  --muted-foreground: 18 12% 42%;
+  --accent: 17 45% 93%;
+  --accent-foreground: 17 72% 28%;
+  --destructive: 0 65% 48%;
   --destructive-foreground: 0 0% 100%;
-  
-  --input: 40 13% 90%;
-  --ring: 15 50% 50%;
 
-  --chart-1: 15 50% 50%;
-  --chart-2: 35 60% 60%;
-  --chart-3: 175 40% 40%;
-  --chart-4: 215 40% 40%;
-  --chart-5: 320 40% 50%;
+  --input: 38 18% 88%;
+  --ring: 17 72% 40%;
 
-  --sidebar: 40 33% 98%;
-  --sidebar-foreground: 20 14% 15%;
-  --sidebar-border: 40 13% 90%;
-  --sidebar-primary: 15 50% 50%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 40 20% 92%;
-  --sidebar-accent-foreground: 20 14% 15%;
-  --sidebar-ring: 15 50% 50%;
+  --chart-1: 17 72% 40%;
+  --chart-2: 32 65% 52%;
+  --chart-3: 175 42% 38%;
+  --chart-4: 215 42% 42%;
+  --chart-5: 320 42% 48%;
+
+  --sidebar: 38 28% 97%;
+  --sidebar-foreground: 18 18% 13%;
+  --sidebar-border: 38 18% 88%;
+  --sidebar-primary: 17 72% 40%;
+  --sidebar-primary-foreground: 38 100% 98%;
+  --sidebar-accent: 38 22% 91%;
+  --sidebar-accent-foreground: 18 18% 13%;
+  --sidebar-ring: 17 72% 40%;
 
   --app-font-sans: 'Alexandria', sans-serif;
+  --app-font-display: 'El Messiri', 'Alexandria', sans-serif;
   --app-font-serif: Georgia, serif;
   --app-font-mono: Menlo, monospace;
-  --radius: 0.75rem; /* 12px */
+  --radius: 0.75rem;
 
   --shadow-2xs: 0px 2px 0px 0px rgba(0,0,0,0.02);
   --shadow-xs: 0px 2px 0px 0px rgba(0,0,0,0.04);
   --shadow-sm: 0px 2px 0px 0px rgba(0,0,0,0.02), 0px 1px 2px -1px rgba(0,0,0,0.04);
   --shadow: 0px 2px 0px 0px rgba(0,0,0,0.02), 0px 1px 2px -1px rgba(0,0,0,0.04);
-  --shadow-md: 0px 2px 0px 0px rgba(0,0,0,0.02), 0px 2px 4px -1px rgba(0,0,0,0.04);
-  --shadow-lg: 0px 2px 0px 0px rgba(0,0,0,0.02), 0px 4px 6px -1px rgba(0,0,0,0.04);
-  --shadow-xl: 0px 2px 0px 0px rgba(0,0,0,0.02), 0px 8px 10px -1px rgba(0,0,0,0.04);
+  --shadow-md: 0px 2px 0px 0px rgba(0,0,0,0.02), 0px 2px 4px -1px rgba(0,0,0,0.08);
+  --shadow-lg: 0px 2px 0px 0px rgba(0,0,0,0.02), 0px 4px 6px -1px rgba(0,0,0,0.08);
+  --shadow-xl: 0px 2px 0px 0px rgba(0,0,0,0.02), 0px 8px 10px -1px rgba(0,0,0,0.08);
   --shadow-2xl: 0px 2px 0px 0px rgba(0,0,0,0.02);
   --tracking-normal: 0em;
   --spacing: 0.25rem;
@@ -151,45 +154,65 @@
   --elevate-1: rgba(255, 255, 255, 0.04);
   --elevate-2: rgba(255, 255, 255, 0.09);
 
-  /* Deep warm dark mode */
-  --background: 20 14% 10%;
-  --foreground: 40 33% 94%;
-  --border: 20 14% 20%;
-  --card: 20 14% 13%;
-  --card-foreground: 40 33% 94%;
-  --card-border: 20 14% 20%;
-  --popover: 20 14% 13%;
-  --popover-foreground: 40 33% 94%;
-  --popover-border: 20 14% 20%;
-  
-  --primary: 15 50% 60%;
+  --background: 18 18% 9%;
+  --foreground: 38 30% 93%;
+  --border: 18 14% 19%;
+  --card: 18 18% 12%;
+  --card-foreground: 38 30% 93%;
+  --card-border: 18 14% 20%;
+  --popover: 18 18% 12%;
+  --popover-foreground: 38 30% 93%;
+  --popover-border: 18 14% 19%;
+
+  --primary: 17 65% 58%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 20 14% 20%;
-  --secondary-foreground: 40 33% 94%;
-  --muted: 20 14% 20%;
-  --muted-foreground: 40 10% 60%;
-  --accent: 15 40% 25%;
-  --accent-foreground: 15 50% 80%;
-  --destructive: 0 60% 50%;
+  --secondary: 18 14% 20%;
+  --secondary-foreground: 38 30% 93%;
+  --muted: 18 14% 19%;
+  --muted-foreground: 38 12% 58%;
+  --accent: 17 35% 22%;
+  --accent-foreground: 17 65% 78%;
+  --destructive: 0 62% 48%;
   --destructive-foreground: 0 0% 100%;
 
-  --input: 20 14% 20%;
-  --ring: 15 50% 60%;
+  --input: 18 14% 19%;
+  --ring: 17 65% 58%;
 
-  --chart-1: 15 50% 60%;
-  --chart-2: 35 60% 60%;
-  --chart-3: 175 40% 40%;
-  --chart-4: 215 40% 40%;
-  --chart-5: 320 40% 50%;
+  --chart-1: 17 65% 58%;
+  --chart-2: 32 62% 58%;
+  --chart-3: 175 40% 42%;
+  --chart-4: 215 40% 44%;
+  --chart-5: 320 40% 52%;
 
-  --sidebar: 20 14% 10%;
-  --sidebar-foreground: 40 33% 94%;
-  --sidebar-border: 20 14% 20%;
-  --sidebar-primary: 15 50% 60%;
+  --sidebar: 18 18% 9%;
+  --sidebar-foreground: 38 30% 93%;
+  --sidebar-border: 18 14% 19%;
+  --sidebar-primary: 17 65% 58%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 20 14% 20%;
-  --sidebar-accent-foreground: 40 33% 94%;
-  --sidebar-ring: 15 50% 60%;
+  --sidebar-accent: 18 14% 20%;
+  --sidebar-accent-foreground: 38 30% 93%;
+  --sidebar-ring: 17 65% 58%;
+}
+
+/* Winner card reveal animation */
+@keyframes winner-reveal {
+  0% {
+    opacity: 0;
+    transform: scale(0.96) translateY(10px);
+    box-shadow: 0 0 0 0 hsl(var(--primary) / 0);
+  }
+  55% {
+    box-shadow: 0 0 40px 6px hsl(var(--primary) / 0.18);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    box-shadow: 0 0 0 0 hsl(var(--primary) / 0);
+  }
+}
+
+@utility animate-winner {
+  animation: winner-reveal 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
 }
 
 @layer base {
@@ -197,9 +220,18 @@
     @apply border-border;
   }
 
+  html {
+    direction: rtl;
+  }
+
   body {
     @apply font-sans antialiased bg-background text-foreground;
     direction: rtl;
+  }
+
+  /* El Messiri for display headings — more expressive than Alexandria alone */
+  h1, h2 {
+    font-family: var(--app-font-display, var(--app-font-sans));
   }
 }
 

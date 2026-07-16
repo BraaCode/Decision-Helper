@@ -124,7 +124,7 @@ export default function DecisionsList() {
                   </p>
                 </div>
                 
-                <div className="flex items-center justify-between pt-4 border-t border-border mt-auto">
+                <div className="relative z-10 flex items-center justify-between pt-4 border-t border-border mt-auto">
                   <Link href={`/decisions/${decision.id}`} className="flex items-center text-sm font-medium text-primary hover:text-primary/80">
                     <span>عرض التفاصيل</span>
                     <ChevronLeft className="h-4 w-4 ms-1" />
